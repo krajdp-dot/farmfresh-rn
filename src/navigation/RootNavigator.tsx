@@ -7,8 +7,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Lazy imports for perf
 const SplashScreen = React.lazy(() => import('../screens/SplashScreen'));
-const AuthNavigator = React.lazy(() => import('./AuthStack'));
-const MainNavigator = React.lazy(() => import('./MainTabs'));
+const AuthNavigator = React.lazy(() => import('./AuthNavigator'));
+const MainNavigator = React.lazy(() => import('./MainNavigator'));
 
 export default function RootNavigator() {
   const { isHydrated, user, isGuest } = useAuthStore();
