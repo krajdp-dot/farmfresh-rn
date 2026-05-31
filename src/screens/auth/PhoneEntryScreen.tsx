@@ -46,9 +46,7 @@ export default function PhoneEntryScreen() {
   }));
 
   const inputStyle = useAnimatedStyle(() => ({
-    borderColor: inputBorder.value === 1
-      ? Colors.accent
-      : `rgba(128,239,128,${0.1 + inputBorder.value * 0.2})`,
+    borderColor: inputBorder.value === 1 ? Colors.accent : Colors.border,
     transform: [{ translateX: shakeX.value }],
   }));
 
