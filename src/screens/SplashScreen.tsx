@@ -24,7 +24,6 @@ import { Colors, Font, fs, wp, hp } from '../theme';
 
 const { width: W, height: H } = Dimensions.get('window');
 
-// Produce that rains from top
 const PRODUCE = ['🍅', '🥕', '🌽', '🥬', '🍋', '🫚', '🧅', '🫛', '🍇', '🥭'];
 
 interface ParticleProps {
@@ -32,9 +31,10 @@ interface ParticleProps {
   delay: number;
   x: number;
   size: number;
+  rotateTarget: number;
 }
 
-function Particle({ emoji, delay, x, size }: ParticleProps) {
+function Particle({ emoji, delay, x, size, rotateTarget }: ParticleProps) {
   const y = useSharedValue(-60);
   const opacity = useSharedValue(0);
   const rotate = useSharedValue(0);
@@ -50,7 +50,7 @@ function Particle({ emoji, delay, x, size }: ParticleProps) {
     ));
     rotate.value = withDelay(
       delay,
-      withTiming(Math.random() > 0.5 ? 360 : -360, { duration: 2800, easing: Easing.linear })
+      withTiming(rotateTarget, { duration: 2800, easing: Easing.linear })
     );
   }, []);
 
@@ -69,13 +69,10 @@ function Particle({ emoji, delay, x, size }: ParticleProps) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
 export default function SplashScreen() {
   const { hydrateFromStorage } = useAuthStore();
   const { hydrateLang } = useLangStore();
 
-  // Animation values
   const logoScale = useSharedValue(0.3);
   const logoOpacity = useSharedValue(0);
   const logoY = useSharedValue(30);
@@ -85,34 +82,29 @@ export default function SplashScreen() {
   const subtitleOpacity = useSharedValue(0);
   const overlayOpacity = useSharedValue(0);
 
-  // Particles
+  // Pre-compute random values on JS thread
   const particles = PRODUCE.map((emoji, i) => ({
     emoji,
     delay: 300 + i * 120,
     x: (W / PRODUCE.length) * i + Math.random() * 20 - 10,
     size: 22 + Math.random() * 16,
+    rotateTarget: Math.random() > 0.5 ? 360 : -360,
   }));
 
   useEffect(() => {
-    // Hydrate stores in parallel
     Promise.all([hydrateFromStorage(), hydrateLang()]);
 
-    // Logo entrance
     logoScale.value = withDelay(200, withSpring(1, { stiffness: 180, damping: 16 }));
     logoOpacity.value = withDelay(200, withTiming(1, { duration: 400 }));
     logoY.value = withDelay(200, withSpring(0, { stiffness: 160, damping: 18 }));
 
-    // Divider line
     lineW.value = withDelay(700, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
 
-    // Tagline
     taglineOpacity.value = withDelay(900, withTiming(1, { duration: 500 }));
     taglineY.value = withDelay(900, withSpring(0, { stiffness: 160, damping: 18 }));
 
-    // Subtitle
     subtitleOpacity.value = withDelay(1300, withTiming(1, { duration: 400 }));
 
-    // Fade out
     overlayOpacity.value = withDelay(
       2000,
       withTiming(1, { duration: 500, easing: Easing.in(Easing.cubic) })
@@ -146,25 +138,20 @@ export default function SplashScreen() {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Deep gradient background */}
       <LinearGradient
         colors={['#020A04', '#051409', '#0A1A0F', '#071610']}
         locations={[0, 0.3, 0.7, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Radial glow centre */}
       <View style={styles.glow} />
 
-      {/* Falling produce particles */}
       {particles.map((p, i) => (
         <Particle key={i} {...p} />
       ))}
 
-      {/* Logo block */}
       <View style={styles.centerBlock}>
         <Animated.View style={logoStyle}>
-          {/* Logo mark — leaf + wordmark */}
           <View style={styles.logoRow}>
             <Text style={styles.logoLeaf}>🌿</Text>
             <View style={styles.logoTextWrap}>
@@ -174,26 +161,21 @@ export default function SplashScreen() {
           </View>
         </Animated.View>
 
-        {/* Divider */}
         <Animated.View style={[styles.divider, lineStyle]} />
 
-        {/* Tagline */}
         <Animated.View style={taglineStyle}>
           <Text style={styles.tagline}>Mandi Awakens</Text>
         </Animated.View>
 
-        {/* Hindi subtitle */}
         <Animated.View style={subtitleStyle}>
           <Text style={styles.subtitle}>मंडी से सीधे आपके दरवाज़े</Text>
         </Animated.View>
       </View>
 
-      {/* Location pill */}
       <Animated.View style={[styles.locationPill, subtitleStyle]}>
         <Text style={styles.locationText}>📍 Bhagalpur, Bihar</Text>
       </Animated.View>
 
-      {/* Fade-out overlay */}
       <Animated.View
         style={[StyleSheet.absoluteFill, { backgroundColor: '#020A04' }, overlayStyle]}
         pointerEvents="none"
@@ -201,8 +183,6 @@ export default function SplashScreen() {
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -212,7 +192,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A1A0F',
     overflow: 'hidden',
   },
-
   glow: {
     position: 'absolute',
     width: W * 0.8,
@@ -223,12 +202,10 @@ const styles = StyleSheet.create({
     top: H * 0.25,
     alignSelf: 'center',
   },
-
   centerBlock: {
     alignItems: 'center',
     gap: hp(12),
   },
-
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -254,14 +231,12 @@ const styles = StyleSheet.create({
     letterSpacing: wp(3),
     lineHeight: fs(38),
   },
-
   divider: {
     height: 1,
     backgroundColor: Colors.accent,
     opacity: 0.4,
     alignSelf: 'center',
   },
-
   tagline: {
     fontFamily: Font.jakarta.semiBold,
     fontSize: fs(15),
@@ -269,14 +244,12 @@ const styles = StyleSheet.create({
     letterSpacing: wp(2),
     textTransform: 'uppercase',
   },
-
   subtitle: {
     fontFamily: Font.baloo.regular,
     fontSize: fs(14),
     color: Colors.textMuted,
     marginTop: hp(4),
   },
-
   locationPill: {
     position: 'absolute',
     bottom: hp(60),
