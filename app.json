@@ -36,7 +36,8 @@
     },
     "updates": {
       "enabled": true,
-      "checkAutomatically": "ON_LOAD"
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/e584507d-3c69-4f7f-a761-bff19b7dd5a7"
     },
     "runtimeVersion": {
       "policy": "appVersion"
