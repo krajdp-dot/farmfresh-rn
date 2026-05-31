@@ -5,13 +5,13 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
+  FlatList,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { FlashList } from '@shopify/flash-list';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Colors, Font, fs, wp, hp, Radius, Layout } from '../theme';
+import { Colors, Font, fs, wp, hp, Radius } from '../theme';
 import { ProductAPI, type Product } from '../api/client';
 import { useLangStore } from '../stores/stores';
 import { t } from '../i18n';
@@ -27,7 +27,6 @@ export default function SearchScreen() {
   const [debouncedQ, setDebouncedQ] = useState('');
   const inputRef = React.useRef<TextInput>(null);
 
-  // Debounce
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(query), 350);
     return () => clearTimeout(timer);
@@ -54,8 +53,6 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + hp(12) }]}>
-
-      {/* Search input */}
       <View style={styles.searchWrap}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -78,7 +75,6 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Empty / trending */}
       {debouncedQ.length < 2 && (
         <Animated.View entering={FadeIn} style={styles.trendingSection}>
           <Text style={styles.trendingTitle}>Trending</Text>
@@ -96,7 +92,6 @@ export default function SearchScreen() {
         </Animated.View>
       )}
 
-      {/* Results */}
       {debouncedQ.length >= 2 && (
         <View style={styles.resultsWrap}>
           {isFetching ? (
@@ -107,12 +102,11 @@ export default function SearchScreen() {
               <Text style={styles.noResultsText}>No results for "{debouncedQ}"</Text>
             </View>
           ) : (
-            <FlashList
+            <FlatList
               data={results}
               renderItem={renderItem}
               keyExtractor={(p) => p._id}
               numColumns={2}
-              estimatedItemSize={220}
               contentContainerStyle={styles.grid}
               ItemSeparatorComponent={() => <View style={{ height: wp(10) }} />}
               showsVerticalScrollIndicator={false}
@@ -126,7 +120,6 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-
   searchWrap: { paddingHorizontal: wp(16), marginBottom: hp(16) },
   searchBar: {
     flexDirection: 'row',
@@ -149,7 +142,6 @@ const styles = StyleSheet.create({
   },
   clearBtn: { padding: wp(4) },
   clearText: { fontSize: fs(12), color: Colors.textMuted },
-
   trendingSection: { paddingHorizontal: wp(16), gap: hp(12) },
   trendingTitle: {
     fontFamily: Font.outfit.bold,
@@ -170,7 +162,6 @@ const styles = StyleSheet.create({
     fontSize: fs(13),
     color: Colors.textSecondary,
   },
-
   resultsWrap: { flex: 1 },
   searchingText: {
     fontFamily: Font.outfit.regular,
