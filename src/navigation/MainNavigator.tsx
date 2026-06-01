@@ -5,14 +5,12 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  interpolate,
-  Extrapolation,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { MainTabParamList } from './types';
-import { Colors, Font, Layout, Space, Radius, wp, hp, fs } from '../theme';
+import { Colors, Font, Layout, Radius, wp, hp, fs } from '../theme';
 import { useCartStore } from '../stores/cartStore';
 import HomeStack from './HomeStack';
 import SearchScreen from '../screens/SearchScreen';
@@ -21,7 +19,7 @@ import CartScreen from '../screens/CartScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// ─── Icons (SVG-free inline paths) ────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
 function HomeIcon({ active }: { active: boolean }) {
   return (
@@ -70,16 +68,29 @@ function PillTabBar({ state, descriptors, navigation }: PillTabBarProps) {
   const cartCount = useCartStore((s) => s.getItemCount());
   const appNav = useNavigation<any>();
 
+  // ── Hooks MUST be outside map ─────────────────────────────────────────────
+  const scale0 = useSharedValue(1);
+  const scale1 = useSharedValue(1);
+  const scale2 = useSharedValue(1);
+  const scale3 = useSharedValue(1);
+  const scales = [scale0, scale1, scale2, scale3];
+
+  const anim0 = useAnimatedStyle(() => ({ transform: [{ scale: scale0.value }] }));
+  const anim1 = useAnimatedStyle(() => ({ transform: [{ scale: scale1.value }] }));
+  const anim2 = useAnimatedStyle(() => ({ transform: [{ scale: scale2.value }] }));
+  const anim3 = useAnimatedStyle(() => ({ transform: [{ scale: scale3.value }] }));
+  const anims = [anim0, anim1, anim2, anim3];
+
   const tabs = [
-    { name: 'Home', label: 'Shop', Icon: HomeIcon },
-    { name: 'Search', label: 'Search', Icon: SearchIcon },
-    { name: 'Categories', label: 'Browse', Icon: CatIcon },
-    { name: 'Cart', label: 'Cart', Icon: CartIcon },
+    { name: 'Home',       label: 'Shop',   Icon: HomeIcon   },
+    { name: 'Search',     label: 'Search', Icon: SearchIcon },
+    { name: 'Categories', label: 'Browse', Icon: CatIcon    },
+    { name: 'Cart',       label: 'Cart',   Icon: CartIcon   },
   ];
 
   return (
     <View style={[styles.outerWrap, { paddingBottom: insets.bottom + hp(8) }]}>
-      {/* ── Orders strip (sits above pill) ────────────────────────────────── */}
+      {/* Orders strip */}
       <Pressable
         style={styles.ordersStrip}
         onPress={() => appNav.navigate('Home', { screen: 'Orders' })}
@@ -88,19 +99,16 @@ function PillTabBar({ state, descriptors, navigation }: PillTabBarProps) {
         <Text style={styles.ordersStripArrow}>›</Text>
       </Pressable>
 
-      {/* ── Liquid glass pill ─────────────────────────────────────────────── */}
+      {/* Liquid glass pill */}
       <View style={styles.pillOuter}>
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.pillInner}>
           {tabs.map((tab, index) => {
             const isFocused = state.index === index;
-            const scale = useSharedValue(1);
+            const scale = scales[index];
+            const animStyle = anims[index];
 
-            const animStyle = useAnimatedStyle(() => ({
-              transform: [{ scale: scale.value }],
-            }));
-
-            const onPress = useCallback(() => {
+            const onPress = () => {
               scale.value = withSpring(0.88, { stiffness: 400, damping: 15 }, () => {
                 scale.value = withSpring(1, { stiffness: 300, damping: 14 });
               });
@@ -112,7 +120,7 @@ function PillTabBar({ state, descriptors, navigation }: PillTabBarProps) {
               if (!isFocused && !event.defaultPrevented) {
                 navigation.navigate(state.routes[index].name);
               }
-            }, [isFocused, index]);
+            };
 
             return (
               <Pressable
@@ -124,7 +132,10 @@ function PillTabBar({ state, descriptors, navigation }: PillTabBarProps) {
               >
                 <Animated.View style={[styles.tabContent, animStyle]}>
                   {isFocused && <View style={styles.activePill} />}
-                  <tab.Icon active={isFocused} count={tab.name === 'Cart' ? cartCount : 0} />
+                  <tab.Icon
+                    active={isFocused}
+                    count={tab.name === 'Cart' ? cartCount : 0}
+                  />
                   <Text
                     style={[
                       styles.tabLabel,
@@ -151,10 +162,10 @@ export default function MainNavigator() {
       tabBar={(props) => <PillTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Home"       component={HomeStack}        />
+      <Tab.Screen name="Search"     component={SearchScreen}     />
       <Tab.Screen name="Categories" component={CategoriesScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Cart"       component={CartScreen}       />
     </Tab.Navigator>
   );
 }
