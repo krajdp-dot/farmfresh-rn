@@ -1,10 +1,7 @@
-﻿@'
-name: EAS OTA Update
-
+﻿name: EAS OTA Update
 on:
   push:
     branches: [main]
-
 jobs:
   update:
     name: Publish EAS Update
@@ -25,4 +22,3 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Publish OTA update
         run: eas update --channel preview --platform android --message "OTA" --non-interactive
-'@ | Set-Content -Path ".github/workflows/update.yml" -Encoding UTF8
