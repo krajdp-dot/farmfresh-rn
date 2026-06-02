@@ -98,9 +98,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, isGuest } = useAuthStore();
   const { lang } = useLangStore();
-  const getItemCount = useCartStore((s) => s.getItemCount);
+  const cartCount = useCartStore((s) => Object.keys(s.items).length);
   const openCart = useCartStore((s) => s.openCart);
-  const cartCount = getItemCount();
 
   const [selectedCat, setSelectedCat] = React.useState<string>('all');
   const scrollY = useSharedValue(0);
