@@ -28,7 +28,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Publish OTA update
-        run: eas update --channel preview --message "OTA: ${{ github.event.head_commit.message }}" --non-interactive
+       run: eas update --channel preview --message "OTA ${{ github.event.head_commit.message }}" --non-interactive
 
       - name: Notify on success
         if: success()
