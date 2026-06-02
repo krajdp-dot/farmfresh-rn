@@ -65,7 +65,8 @@ interface PillTabBarProps {
 
 function PillTabBar({ state, descriptors, navigation }: PillTabBarProps) {
   const insets = useSafeAreaInsets();
-  const cartCount = useCartStore((s) => s.getItemCount());
+  const getItemCount = useCartStore((s) => s.getItemCount);
+  const cartCount = getItemCount();
   const appNav = useNavigation<any>();
 
   // ── Hooks MUST be outside map ─────────────────────────────────────────────
