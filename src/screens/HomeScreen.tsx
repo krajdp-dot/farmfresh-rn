@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  TextInput,
   StatusBar,
 } from 'react-native';
 import Animated, {
@@ -126,11 +125,7 @@ export default function HomeScreen() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Filtered products
-  const featured = useMemo(
-    () => products.filter((p) => p.isFeatured && p.inStock),
-    [products]
-  );
+  
   const allCats: Array<Category | { _id: 'all'; name: string; nameHi: string }> = [
     { _id: 'all', name: 'All', nameHi: 'सभी' },
     ...categories,
