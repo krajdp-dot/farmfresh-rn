@@ -13,7 +13,6 @@ import Animated, {
   withSpring,
   withSequence,
   withDelay,
-  runOnJS,
   Easing,
   interpolate,
 } from 'react-native-reanimated';
@@ -25,6 +24,15 @@ import { Colors, Font, fs, wp, hp } from '../theme';
 const { width: W, height: H } = Dimensions.get('window');
 
 const PRODUCE = ['🍅', '🥕', '🌽', '🥬', '🍋', '🫚', '🧅', '🫛', '🍇', '🥭'];
+
+// Outside component — Math.random cannot be inside reanimated renders
+const PARTICLES = PRODUCE.map((emoji, i) => ({
+  emoji,
+  delay: 300 + i * 120,
+  x: (W / PRODUCE.length) * i + Math.random() * 20 - 10,
+  size: 22 + Math.random() * 16,
+  rotateTarget: Math.random() > 0.5 ? 360 : -360,
+}));
 
 interface ParticleProps {
   emoji: string;
@@ -82,15 +90,6 @@ export default function SplashScreen() {
   const subtitleOpacity = useSharedValue(0);
   const overlayOpacity = useSharedValue(0);
 
-  // Pre-compute random values on JS thread
-  const particles = PRODUCE.map((emoji, i) => ({
-    emoji,
-    delay: 300 + i * 120,
-    x: (W / PRODUCE.length) * i + Math.random() * 20 - 10,
-    size: 22 + Math.random() * 16,
-    rotateTarget: Math.random() > 0.5 ? 360 : -360,
-  }));
-
   useEffect(() => {
     Promise.all([hydrateFromStorage(), hydrateLang()]);
 
@@ -146,7 +145,7 @@ export default function SplashScreen() {
 
       <View style={styles.glow} />
 
-      {particles.map((p, i) => (
+      {PARTICLES.map((p, i) => (
         <Particle key={i} {...p} />
       ))}
 
