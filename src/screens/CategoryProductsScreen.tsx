@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -32,11 +32,10 @@ export default function CategoryProductsScreen() {
         <Text style={s.title}>{categoryName}</Text>
         <View style={{ width: wp(32) }} />
       </View>
-      <FlashList
+      <FlatList
         data={isLoading ? Array(6).fill(null) : products}
         keyExtractor={(item, i) => item?._id ?? String(i)}
         numColumns={2}
-        estimatedItemSize={220}
         contentContainerStyle={s.grid}
         renderItem={({ item }) =>
           item

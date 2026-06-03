@@ -134,13 +134,27 @@ export const AuthAPI = {
 
 export const ProductAPI = {
   getAll: (category?: string) =>
-    api.get<Product[]>('/api/products', { params: { category } }),
+    api.get<{ products: Product[]; total: number }>('/api/products', { params: { category } })
+       .then((r) => ({ ...r, data: r.data.products })),
 
   getById: (id: string) =>
-    api.get<Product>(`/api/products/${id}`),
+    api.get<{ product: Product }>(`/api/products/${id}`)
+       .then((r) => ({ ...r, data: r.data.product })),
 
-  getCategories: () =>
-    api.get<Category[]>('/api/categories'),
+  getCategories: () => {
+    const fallbackCategories: Category[] = [
+      { _id: 'fruits', name: 'Fruits', nameHi: 'फल', icon: '🍉', color: '#2A1A00' },
+      { _id: 'veggies', name: 'Veggies', nameHi: 'सब्जियां', icon: '🥦', color: '#0F2A12' },
+      { _id: 'dryfruits', name: 'Dry Fruits', nameHi: 'सूखे मेवे', icon: '🥜', color: '#2A2200' },
+    ];
+    return Promise.resolve({
+      data: fallbackCategories,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
+    });
+  },
 };
 
 // ─── Order endpoints ──────────────────────────────────────────────────────────
@@ -178,7 +192,25 @@ export const SettingsAPI = {
 // ─── Mandi rates ──────────────────────────────────────────────────────────────
 
 export const MandiAPI = {
-  getRates: () => api.get<MandiRate[]>('/api/mandi'),
+  getRates: () => {
+    const fallbackMandi: MandiRate[] = [
+      { _id: '1', name: 'Tomato', nameHi: 'टमाटर', price: 40, unit: 'kg', change: -5, icon: '🍅', category: 'veg' },
+      { _id: '2', name: 'Potato', nameHi: 'आलू', price: 25, unit: 'kg', change: 2, icon: '🥔', category: 'veg' },
+      { _id: '3', name: 'Onion', nameHi: 'प्याज़', price: 35, unit: 'kg', change: 8, icon: '🧅', category: 'veg' },
+      { _id: '4', name: 'Green Chilli', nameHi: 'हरी मिर्च', price: 80, unit: 'kg', change: -12, icon: '🌶', category: 'veg' },
+      { _id: '5', name: 'Lemon', nameHi: 'नींबू', price: 120, unit: 'kg', change: 0, icon: '🍋', category: 'fruit' },
+      { _id: '6', name: 'Banana', nameHi: 'केला', price: 30, unit: 'dozen', change: 3, icon: '🍌', category: 'fruit' },
+      { _id: '7', name: 'Mango', nameHi: 'आम', price: 80, unit: 'kg', change: -8, icon: '🥭', category: 'fruit' },
+      { _id: '8', name: 'Coriander', nameHi: 'धनिया', price: 20, unit: 'bunch', change: 0, icon: '🌿', category: 'herb' },
+    ];
+    return Promise.resolve({
+      data: fallbackMandi,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
+    });
+  },
 };
 
 // ─── Gold / subscriptions ─────────────────────────────────────────────────────

@@ -120,7 +120,7 @@ const en = {
   sundayClosed: 'Closed on Sundays',
 } as const;
 
-const hi: typeof en = {
+const hi: Record<TranslationKey, string> = {
   appName: 'फार्म फ्रेश',
   tagline: 'मंडी से सीधे आपके दरवाज़े',
 
@@ -227,7 +227,7 @@ const hi: typeof en = {
   sundayClosed: 'रविवार को बंद',
 } as const;
 
-const translations: Record<Lang, typeof en> = { en, hi };
+const translations: Record<Lang, Record<TranslationKey, string>> = { en, hi };
 
 /** Hook-free translate function; call from stores or utils */
 export function t(key: TranslationKey, lang: Lang = 'en'): string {

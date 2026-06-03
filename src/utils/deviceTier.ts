@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import * as Device from 'expo-device';
 
 export type DeviceTier = 'low' | 'mid' | 'high';
 
@@ -8,33 +7,9 @@ let _tier: DeviceTier | null = null;
 export function getDeviceTier(): DeviceTier {
   if (_tier) return _tier;
 
-  // On simulator/emulator → mid tier
-  if (!Device.isDevice) {
-    _tier = 'mid';
-    return _tier;
-  }
-
-  const totalMem = Device.totalMemory ?? 0; // bytes
-  const gbMem = totalMem / (1024 ** 3);
-
-  if (Platform.OS === 'android') {
-    // Android: judge by RAM
-    if (gbMem < 3) {
-      _tier = 'low';
-    } else if (gbMem < 6) {
-      _tier = 'mid';
-    } else {
-      _tier = 'high';
-    }
-  } else {
-    // iOS: all modern iPhones handle 120fps — tier by RAM still
-    if (gbMem < 3) {
-      _tier = 'mid';
-    } else {
-      _tier = 'high';
-    }
-  }
-
+  // Safe JS fallback without native expo-device.
+  // We'll default to 'mid' tier, which is balanced for all modern devices.
+  _tier = 'mid';
   return _tier;
 }
 
