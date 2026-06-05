@@ -1,4 +1,4 @@
-{
+﻿{
   "cli": {
     "version": ">= 16.0.0"
   },
@@ -6,6 +6,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "node": "20.19.4",
       "android": {
         "buildType": "apk",
         "image": "ubuntu-22.04-jdk-17-ndk-r25b"
@@ -13,6 +14,7 @@
     },
     "production": {
       "channel": "production",
+      "node": "20.19.4",
       "android": {
         "buildType": "app-bundle",
         "image": "ubuntu-22.04-jdk-17-ndk-r25b"

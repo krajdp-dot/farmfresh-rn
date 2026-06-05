@@ -1,8 +1,9 @@
-{
+﻿{
   "name": "farmfresh",
   "version": "1.0.0",
   "main": "index.js",
   "packageManager": "yarn@1.22.22",
+  "engines": { "node": ">=20.0.0" },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
