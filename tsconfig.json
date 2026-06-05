@@ -5,16 +5,38 @@
     "baseUrl": ".",
     "module": "esnext",
     "paths": {
-      "@/*": ["src/*"],
-      "@theme": ["src/theme/index"],
-      "@api": ["src/api/client"],
-      "@stores/*": ["src/stores/*"],
-      "@utils/*": ["src/utils/*"],
-      "@components/*": ["src/components/*"],
-      "@screens/*": ["src/screens/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@i18n": ["src/i18n/index"]
+      "@/*": [
+        "src/*"
+      ],
+      "@theme": [
+        "src/theme/index"
+      ],
+      "@api": [
+        "src/api/client"
+      ],
+      "@stores/*": [
+        "src/stores/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ],
+      "@components/*": [
+        "src/components/*"
+      ],
+      "@screens/*": [
+        "src/screens/*"
+      ],
+      "@hooks/*": [
+        "src/hooks/*"
+      ],
+      "@i18n": [
+        "src/i18n/index"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.d.ts"
+  ]
 }

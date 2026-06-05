@@ -1,4 +1,4 @@
-import 'react-native-gesture-handler';
+﻿import 'react-native-gesture-handler';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -8,7 +8,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreenExpo from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import { Colors } from './theme';
-import RootNavigator from './navigation/RootNavigator';
+import { RootNavigator } from './navigation/RootNavigator';
+import { AuthProvider } from './context/AuthContext';
 
 SplashScreenExpo.preventAutoHideAsync();
 
@@ -70,12 +71,14 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={navTheme}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
-            <View style={{ flex: 1, backgroundColor: Colors.bg }} onLayout={onLayout}>
-              <RootNavigator />
-            </View>
-          </NavigationContainer>
+          <AuthProvider>
+            <NavigationContainer theme={navTheme}>
+              <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
+              <View style={{ flex: 1, backgroundColor: Colors.bg }} onLayout={onLayout}>
+                <RootNavigator />
+              </View>
+            </NavigationContainer>
+          </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
