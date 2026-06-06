@@ -1,52 +1,54 @@
 {
-  "expo": {
-    "name": "Farm Fresh",
-    "slug": "farmfresh",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A1A0F"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "in.lovefarmfresh.app"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A1A0F"
-      },
-      "package": "in.lovefarmfresh.app",
-      "versionCode": 1,
-      "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "POST_NOTIFICATIONS"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "updates": {
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
-      "url": "https://u.expo.dev/e584507d-3c69-4f7f-a761-bff19b7dd5a7"
-    },
-    "runtimeVersion": "1.0.0",
-    "extra": {
-      "eas": {
-        "projectId": "e584507d-3c69-4f7f-a761-bff19b7dd5a7"
-      }
-    },
-    "plugins": [
-      "expo-font"
-    ]
-  }
+    "expo":  {
+                 "name":  "Farm Fresh",
+                 "slug":  "farmfresh",
+                 "version":  "1.0.0",
+                 "orientation":  "portrait",
+                 "icon":  "./assets/icon.png",
+                 "userInterfaceStyle":  "light",
+                 "splash":  {
+                                "image":  "./assets/splash.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#0A1A0F"
+                            },
+                 "assetBundlePatterns":  [
+                                             "**/*"
+                                         ],
+                 "ios":  {
+                             "supportsTablet":  false,
+                             "bundleIdentifier":  "in.lovefarmfresh.app"
+                         },
+                 "android":  {
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/adaptive-icon.png",
+                                                      "backgroundColor":  "#0A1A0F"
+                                                  },
+                                 "package":  "in.lovefarmfresh.app",
+                                 "versionCode":  1,
+                                 "permissions":  [
+                                                     "RECEIVE_BOOT_COMPLETED",
+                                                     "VIBRATE",
+                                                     "POST_NOTIFICATIONS"
+                                                 ],
+                                 "googleServicesFile":  "./google-services.json"
+                             },
+                 "web":  {
+                             "favicon":  "./assets/favicon.png"
+                         },
+                 "updates":  {
+                                 "enabled":  true,
+                                 "checkAutomatically":  "ON_LOAD",
+                                 "url":  "https://u.expo.dev/e584507d-3c69-4f7f-a761-bff19b7dd5a7"
+                             },
+                 "runtimeVersion":  "1.0.0",
+                 "extra":  {
+                               "eas":  {
+                                           "projectId":  "e584507d-3c69-4f7f-a761-bff19b7dd5a7"
+                                       }
+                           },
+                 "plugins":  [
+                                 "expo-font",
+                                 "@react-native-firebase/app"
+                             ]
+             }
 }
