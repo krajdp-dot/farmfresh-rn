@@ -1,25 +1,19 @@
-// ============================================================
-// FARM FRESH RN v4 — AnimatedPressable
-// Wrap EVERY tappable element with this.
-// Gives spring scale-down on press, like native iOS feedback.
-// ============================================================
-
 import React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Haptics } from '../utils/haptics';
 
 interface AnimatedPressableProps {
   children: React.ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
-  scaleDown?: number;    // default 0.96
+  scaleDown?: number;
   disabled?: boolean;
   hitSlop?: number;
 }
@@ -49,14 +43,14 @@ export const AnimatedPressable = ({
       scale.value = withSpring(1, { damping: 12, stiffness: 200 });
     })
     .onEnd(() => {
-      if (onPress) onPress();
+      if (onPress) runOnJS(onPress)();
     });
 
   const longPress = Gesture.LongPress()
     .enabled(!disabled && !!onLongPress)
     .minDuration(500)
     .onStart(() => {
-      if (onLongPress) onLongPress();
+      if (onLongPress) runOnJS(onLongPress)();
     });
 
   const composed = Gesture.Simultaneous(tap, longPress);
