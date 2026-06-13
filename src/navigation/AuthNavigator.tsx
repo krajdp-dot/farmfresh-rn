@@ -1,23 +1,47 @@
-// ============================================================
-// FARM FRESH RN v4 — AuthNavigator
-// Stack: PhoneEntry → OTP
-// ============================================================
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import PhoneEntryScreen from '../screens/PhoneEntryScreen';
+import OTPScreen from '../screens/OTPScreen';
+import SplashScreen from '../screens/SplashScreen';
 
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { PhoneEntryScreen } from '../screens/auth/PhoneEntryScreen';
-import { OTPScreen } from '../screens/auth/OTPScreen';
+type AuthStep = 'splash' | 'phone' | 'otp';
 
-export type AuthStackParamList = {
-  PhoneEntryScreen: undefined;
-  OTPScreen: { phone: string };
+const AuthNavigator: React.FC = () => {
+  const { sendOTP, verifyOTP } = useAuth();
+  const [step, setStep]             = useState<AuthStep>('splash');
+  const [phone, setPhone]           = useState('');
+  const [confirmation, setConfirmation] = useState<any>(null);
+  const [otpError, setOtpError]     = useState('');
+
+  if (step === 'splash') {
+    return <SplashScreen onFinish={() => setStep('phone')} />;
+  }
+
+  if (step === 'phone') {
+    return (
+      <PhoneEntryScreen
+        onSubmit={async (p) => {
+          setPhone(p);
+          const result = await sendOTP(p);
+          setConfirmation(result.confirmation ?? null);
+          setStep('otp');
+        }}
+      />
+    );
+  }
+
+  return (
+    <OTPScreen
+      phone={phone}
+      onVerify={async (otp) => {
+        setOtpError('');
+        const result = await verifyOTP(confirmation, otp, phone);
+        if (!result.success) setOtpError(result.error || 'Invalid OTP. Try again.');
+      }}
+      onBack={() => { setStep('phone'); setOtpError(''); }}
+      error={otpError}
+    />
+  );
 };
 
-const Stack = createNativeStackNavigator<AuthStackParamList>();
-
-export const AuthNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-    <Stack.Screen name="PhoneEntryScreen" component={PhoneEntryScreen} />
-    <Stack.Screen name="OTPScreen" component={OTPScreen} />
-  </Stack.Navigator>
-);
+export default AuthNavigator;

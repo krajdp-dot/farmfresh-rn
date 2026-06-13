@@ -1,528 +1,309 @@
-// ============================================================
-// FARM FRESH RN v4 — HomeScreen
-// MandiTicker · Category pills · Product grid · Neomorph cards
-// ============================================================
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View,
-  StyleSheet,
-  FlatList,
-  ScrollView,
-  Dimensions,
-  StatusBar,
-  RefreshControl,
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, StatusBar, Image, Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  withTiming,
-  withSpring,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../theme/LangContext';
+import { useAuth } from '../context/AuthContext';
+import SearchBar from '../components/SearchBar';
+import MandiTicker from '../components/MandiTicker';
+import ProductCard from '../components/ProductCard';
+import AnimatedPressable from '../components/AnimatedPressable';
 import {
-  Colors, Glass, Neomorph, Shadow, Font, Spacing, Radius, TextStyle,
-} from '../theme';
-import { AnimatedPressable } from '../components/AnimatedPressable';
-import {
-  IconSearch, IconBell, IconLeaf, IconStar, IconCart,
-  IconChevronRight, IconTomato, IconCarrot, IconMango,
-  IconOnion, IconPotato, IconBanana, getProduceIcon,
-} from '../components/icons';
-import { MandiTicker } from '../components/MandiTicker';
-import { ProductCard } from '../components/ProductCard';
-import { SkeletonCard } from '../components/ProductCard';
+  DeliveryBanner,
+  SeasonalSpecials,
+  SabziBasketBanner,
+  WhatsAppFAB,
+} from '../components/features';
+import { spacing, SCREEN_WIDTH } from '../theme/tokens';
 
-const { width: W } = Dimensions.get('window');
-const CARD_WIDTH = (W - Spacing.base * 2 - Spacing.md) / 2;
+const BANNER_W = SCREEN_WIDTH - 32;
 
-// ── Mock data (replace with API) ──────────────────────────
 const CATEGORIES = [
-  { id: '1', label: 'All', icon: null },
-  { id: '2', label: 'Vegetables', icon: IconCarrot },
-  { id: '3', label: 'Fruits', icon: IconMango },
-  { id: '4', label: 'Leafy', icon: IconLeaf },
-  { id: '5', label: 'Onion/Potato', icon: IconOnion },
-  { id: '6', label: 'Exotic', icon: IconTomato },
+  { id: '1', name: 'Vegetables',  nameHi: 'सब्ज़ियाँ',    image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300', emoji: '🥦' },
+  { id: '2', name: 'Fruits',      nameHi: 'फल',           image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=300', emoji: '🍊' },
+  { id: '3', name: 'Leafy',       nameHi: 'पत्तेदार',     image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300', emoji: '🥬' },
+  { id: '4', name: 'Herbs',       nameHi: 'मसाले',        image: 'https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=300', emoji: '🌿' },
+  { id: '5', name: 'Exotic',      nameHi: 'विदेशी',       image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=300', emoji: '🫑' },
+  { id: '6', name: 'Root Veg',    nameHi: 'जड़ सब्ज़ी',   image: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=300', emoji: '🥕' },
+  { id: '7', name: 'Gourds',      nameHi: 'कद्दू वर्ग',  image: 'https://images.unsplash.com/photo-1570586437263-ab629fccc818?w=300', emoji: '🎃' },
+  { id: '8', name: 'Seasonal',    nameHi: 'मौसमी',        image: 'https://images.unsplash.com/photo-1506807803488-8eafc15316c7?w=300', emoji: '🌾' },
 ];
 
-const MOCK_PRODUCTS = [
-  { id: '1', name: 'Fresh Tomato', price: 28, mandiPrice: 18, unit: '500g', tag: 'Picked Today', category: 'Vegetables', image: null, rating: 4.5, inStock: true },
-  { id: '2', name: 'Alphonso Mango', price: 120, mandiPrice: 85, unit: '1kg', tag: 'Seasonal', category: 'Fruits', image: null, rating: 4.8, inStock: true },
-  { id: '3', name: 'Red Onion', price: 35, mandiPrice: 22, unit: '1kg', tag: null, category: 'Onion/Potato', image: null, rating: 4.2, inStock: true },
-  { id: '4', name: 'Banana', price: 45, mandiPrice: 30, unit: '1 dozen', tag: 'Fresh', category: 'Fruits', image: null, rating: 4.3, inStock: true },
-  { id: '5', name: 'Spinach', price: 20, mandiPrice: 12, unit: '250g', tag: 'Picked Today', category: 'Leafy', image: null, rating: 4.6, inStock: false },
-  { id: '6', name: 'Potato', price: 25, mandiPrice: 15, unit: '1kg', tag: null, category: 'Onion/Potato', image: null, rating: 4.0, inStock: true },
+const FEATURED = [
+  { id: 'p1', name: 'Fresh Tomatoes', nameHi: 'ताज़े टमाटर', price: 25, mandiPrice: 18, unit: '1 kg', image: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400' },
+  { id: 'p2', name: 'Potatoes',       nameHi: 'आलू',         price: 22, mandiPrice: 15, unit: '1 kg', image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400' },
+  { id: 'p3', name: 'Onions',         nameHi: 'प्याज़',      price: 28, mandiPrice: 20, unit: '1 kg', image: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=400' },
+  { id: 'p4', name: 'Cauliflower',    nameHi: 'फूलगोभी',    price: 35, mandiPrice: 25, unit: '1 piece', image: 'https://images.unsplash.com/photo-1510627489930-0c1b0bfb6785?w=400' },
+  { id: 'p5', name: 'Spinach',        nameHi: 'पालक',        price: 18, mandiPrice: 12, unit: '500g', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400' },
+  { id: 'p6', name: 'Bitter Gourd',   nameHi: 'करेला',       price: 42, mandiPrice: 30, unit: '500g', image: 'https://images.unsplash.com/photo-1571086430599-65c4a5ad13c1?w=400' },
 ];
 
-// ── Animated header ───────────────────────────────────────
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const BANNERS = [
+  { id: 'b1', title: 'Mandi Direct', titleHi: 'मंडी सीधा', sub: 'Wholesale prices, home delivered', subHi: 'थोक भाव, घर डिलीवरी', bg: '#1A5C35', emoji: '🌿' },
+  { id: 'b2', title: 'Free Delivery', titleHi: 'मुफ़्त डिलीवरी', sub: 'On orders above ₹299', subHi: '₹299 से ऊपर', bg: '#B02030', emoji: '🚀' },
+  { id: 'b3', title: 'Gold Membership', titleHi: 'गोल्ड सदस्यता', sub: 'Unlock exclusive benefits', subHi: 'विशेष फायदे', bg: '#7A5200', emoji: '⭐' },
+];
 
-// ── Category Pill ─────────────────────────────────────────
-interface CategoryPillProps {
-  label: string;
-  Icon: any;
-  isSelected: boolean;
-  onPress: () => void;
+function getGreeting(isHindi: boolean) {
+  const h = new Date().getHours();
+  if (isHindi) {
+    if (h < 12) return 'सुप्रभात 🌅';
+    if (h < 17) return 'नमस्ते ☀️';
+    return 'शुभ संध्या 🌙';
+  }
+  if (h < 12) return 'Good morning 🌅';
+  if (h < 17) return 'Good afternoon ☀️';
+  return 'Good evening 🌙';
 }
 
-const CategoryPill = ({ label, Icon, isSelected, onPress }: CategoryPillProps) => {
-  return (
-    <AnimatedPressable onPress={onPress} scaleDown={0.93}>
-      <View style={[styles.categoryPill, isSelected && styles.categoryPillActive]}>
-        {Icon && <Icon size={14} color={isSelected ? Colors.white : Colors.textSecondary} />}
-        <Animated.Text style={[styles.categoryLabel, isSelected && styles.categoryLabelActive]}>
-          {label}
-        </Animated.Text>
-      </View>
-    </AnimatedPressable>
-  );
-};
+const CAT_SIZE = (SCREEN_WIDTH - 32 - 24) / 4;
 
-// ── Hero greeting ─────────────────────────────────────────
-const HeroGreeting = ({ scrollY }: { scrollY: Animated.SharedValue<number> }) => {
-  const insets = useSafeAreaInsets();
-
-  const heroStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP),
-    transform: [{
-      translateY: interpolate(scrollY.value, [0, 80], [0, -20], Extrapolation.CLAMP),
-    }],
-  }));
-
-  return (
-    <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.sm }, heroStyle]}>
-      <View style={styles.heroLeft}>
-        <Animated.Text style={styles.heroGreeting}>Good morning 🌱</Animated.Text>
-        <Animated.Text style={styles.heroTitle}>What's fresh{'\n'}from mandi today?</Animated.Text>
-      </View>
-      <View style={styles.heroActions}>
-        <AnimatedPressable scaleDown={0.9} style={styles.iconBtn}>
-          <View style={styles.iconBtnInner}>
-            <IconBell size={20} color={Colors.textOnDark} />
-          </View>
-        </AnimatedPressable>
-      </View>
-    </Animated.View>
-  );
-};
-
-// ── Sticky search bar ─────────────────────────────────────
-const StickySearch = ({
-  scrollY,
-  onPress,
-}: {
-  scrollY: Animated.SharedValue<number>;
-  onPress: () => void;
-}) => {
-  const insets = useSafeAreaInsets();
-
-  const stickyStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [60, 100], [0, 1], Extrapolation.CLAMP),
-    transform: [{
-      translateY: interpolate(scrollY.value, [60, 100], [-10, 0], Extrapolation.CLAMP),
-    }],
-  }));
-
-  return (
-    <Animated.View style={[styles.stickyBar, { top: insets.top }, stickyStyle]}>
-      <AnimatedPressable onPress={onPress} style={styles.searchBarSticky} scaleDown={0.98}>
-        <IconSearch size={16} color={Colors.textMuted} />
-        <Animated.Text style={styles.searchPlaceholder}>Search produce…</Animated.Text>
-      </AnimatedPressable>
-    </Animated.View>
-  );
-};
-
-// ── Section header ────────────────────────────────────────
-const SectionHeader = ({ title, onSeeAll }: { title: string; onSeeAll?: () => void }) => (
-  <View style={styles.sectionHeader}>
-    <Animated.Text style={styles.sectionTitle}>{title}</Animated.Text>
-    {onSeeAll && (
-      <AnimatedPressable onPress={onSeeAll} scaleDown={0.92}>
-        <View style={styles.seeAllRow}>
-          <Animated.Text style={styles.seeAll}>See all</Animated.Text>
-          <IconChevronRight size={14} color={Colors.brandGreen} strokeWidth={2.5} />
-        </View>
-      </AnimatedPressable>
-    )}
-  </View>
-);
-
-// ── Gold banner ───────────────────────────────────────────
-const GoldBanner = ({ onPress }: { onPress: () => void }) => (
-  <AnimatedPressable onPress={onPress} style={styles.goldBannerWrap} scaleDown={0.97}>
-    <LinearGradient
-      colors={['#1A1200', '#2D2000', '#1A1200']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={styles.goldBanner}
-    >
-      <View style={styles.goldLeft}>
-        <Animated.Text style={styles.goldTitle}>🌟 Farm Fresh Gold</Animated.Text>
-        <Animated.Text style={styles.goldSub}>Free delivery · Priority stock · ₹39/month</Animated.Text>
-      </View>
-      <View style={styles.goldPill}>
-        <Animated.Text style={styles.goldPillText}>Try</Animated.Text>
-      </View>
-    </LinearGradient>
-  </AnimatedPressable>
-);
-
-// ── Main Screen ───────────────────────────────────────────
-interface HomeScreenProps {
-  navigation: any;
+interface Props {
+  onSearchPress: () => void;
+  onCategoryPress: (cat: any) => void;
+  onProductPress: (prod: any) => void;
+  onCartPress: () => void;
+  onGoldPress: () => void;
 }
 
-export const HomeScreen = ({ navigation }: HomeScreenProps) => {
-  const [selectedCategory, setSelectedCategory] = useState('1');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollY = useSharedValue(0);
+const HomeScreen: React.FC<Props> = ({ onSearchPress, onCategoryPress, onProductPress, onCartPress, onGoldPress }) => {
+  const { colors } = useTheme();
+  const { t, isHindi } = useLang();
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [activeBanner, setActiveBanner] = useState(0);
 
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
+  const boldFont = isHindi ? 'Baloo2-Bold'     : 'Outfit-Bold';
+  const bodyFont = isHindi ? 'Baloo2-Regular'  : 'Outfit-Regular';
+  const semiBold = isHindi ? 'Baloo2-SemiBold' : 'Outfit-SemiBold';
+  const exBold   = isHindi ? 'Baloo2-Bold'     : 'Outfit-ExtraBold';
 
-  const filteredProducts = selectedCategory === '1'
-    ? MOCK_PRODUCTS
-    : MOCK_PRODUCTS.filter(p => {
-        const cat = CATEGORIES.find(c => c.id === selectedCategory);
-        return cat ? p.category === cat.label : true;
-      });
+  return (
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.bg} />
 
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1200);
-  }, []);
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 6, backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
+        <View style={styles.headerRow}>
+          <View style={styles.locationBlock}>
+            <Text style={[styles.deliverLabel, { color: colors.textMuted, fontFamily: bodyFont }]}>
+              📍 {t('deliverTo')}
+            </Text>
+            <View style={[styles.locationBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.locationBadgeText, { color: colors.primary, fontFamily: 'Outfit-Medium' }]}>
+                {isHindi ? 'भागलपुर' : 'Bhagalpur'} ▾
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={onCartPress} activeOpacity={0.8}>
+            <View style={[styles.cartBtn, { backgroundColor: colors.bgSecondary }]}>
+              <Text style={styles.cartEmoji}>🛒</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        <SearchBar onPress={onSearchPress} editable={false} />
+      </View>
 
-  const renderProduct = useCallback(({ item, index }: { item: any; index: number }) => (
-    <ProductCard
-      product={item}
-      width={CARD_WIDTH}
-      onPress={() => navigation.navigate('ProductDetail', { product: item })}
-      index={index}
-    />
-  ), [navigation]);
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-  const ListHeader = useCallback(() => (
-    <View>
-      {/* Hero */}
-      <HeroGreeting scrollY={scrollY} />
+        {/* Mandi Ticker */}
+        <MandiTicker />
 
-      {/* Search bar (inline, collapses to sticky) */}
-      <AnimatedPressable
-        onPress={() => navigation.navigate('Search')}
-        style={styles.searchBarWrap}
-        scaleDown={0.98}
-      >
-        <View style={styles.searchBar}>
-          <IconSearch size={18} color={Colors.textMuted} />
-          <Animated.Text style={styles.searchPlaceholder}>
-            Search tomatoes, mangoes…
-          </Animated.Text>
-          <View style={styles.searchKbd}>
-            <Animated.Text style={styles.searchKbdText}>⌕</Animated.Text>
+        {/* Delivery ETA + Cutoff Banner — F1 + F8 */}
+        <DeliveryBanner />
+
+        {/* Greeting */}
+        <View style={styles.greetSection}>
+          <Text style={[styles.greetText, { color: colors.text, fontFamily: boldFont }]}>
+            {getGreeting(isHindi)} 👋
+          </Text>
+          <Text style={[styles.greetSub, { color: colors.textSecondary, fontFamily: bodyFont }]}>
+            {isHindi ? 'आज क्या चाहिए?' : "What would you like today?"}
+          </Text>
+        </View>
+
+        {/* Banner Carousel */}
+        <View style={styles.bannerSection}>
+          <ScrollView
+            horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={e => setActiveBanner(Math.round(e.nativeEvent.contentOffset.x / BANNER_W))}
+            snapToInterval={BANNER_W + 12} decelerationRate="fast"
+            contentContainerStyle={styles.bannerScroll}
+          >
+            {BANNERS.map(b => (
+              <View key={b.id} style={[styles.banner, { backgroundColor: b.bg, width: BANNER_W }]}>
+                <View style={styles.bannerText}>
+                  <Text style={[styles.bannerTitle, { fontFamily: exBold }]}>{isHindi ? b.titleHi : b.title}</Text>
+                  <Text style={[styles.bannerSub, { fontFamily: bodyFont }]}>{isHindi ? b.subHi : b.sub}</Text>
+                </View>
+                <Text style={styles.bannerEmoji}>{b.emoji}</Text>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.dotsRow}>
+            {BANNERS.map((_, i) => (
+              <View key={i} style={[styles.dot, { backgroundColor: i === activeBanner ? colors.primary : colors.border, width: i === activeBanner ? 16 : 6 }]} />
+            ))}
           </View>
         </View>
-      </AnimatedPressable>
 
-      {/* Mandi Ticker */}
-      <MandiTicker style={styles.ticker} />
+        {/* Categories */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: boldFont }]}>{t('categories')}</Text>
+              <Text style={[styles.sectionSub, { color: colors.textMuted, fontFamily: bodyFont }]}>{CATEGORIES.length} {isHindi ? 'श्रेणियाँ' : 'categories'}</Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={[styles.seeAll, { color: colors.primary, fontFamily: semiBold }]}>{t('seeAll')} →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.catGrid}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity key={cat.id} onPress={() => onCategoryPress(cat)} activeOpacity={0.8}>
+                <View style={styles.catItem}>
+                  <View style={[styles.catImageWrap, { backgroundColor: colors.bgSecondary, width: CAT_SIZE, height: CAT_SIZE }]}>
+                    <Image source={{ uri: cat.image }} style={styles.catImage} resizeMode="cover" />
+                    <View style={styles.catEmojiOverlay}>
+                      <Text style={styles.catEmoji}>{cat.emoji}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.catLabel, { color: colors.text, fontFamily: 'Outfit-Medium' }]} numberOfLines={2}>
+                    {isHindi ? cat.nameHi : cat.name}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-      {/* Gold Banner */}
-      <GoldBanner onPress={() => navigation.navigate('Gold')} />
+        {/* Fresh Today */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: boldFont }]}>{t('freshToday')} 🌿</Text>
+              <Text style={[styles.sectionSub, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                {isHindi ? 'आज सुबह मंडी से आया' : 'Arrived from mandi this morning'}
+              </Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={[styles.seeAll, { color: colors.primary, fontFamily: semiBold }]}>{t('seeAll')} →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.productGrid}>
+            {FEATURED.map(p => (
+              <ProductCard key={p.id} {...p} onPress={() => onProductPress(p)} />
+            ))}
+          </View>
+        </View>
 
-      {/* Category pills */}
-      <SectionHeader title="Browse" />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryScroll}
-      >
-        {CATEGORIES.map((cat) => (
-          <CategoryPill
-            key={cat.id}
-            label={cat.label}
-            Icon={cat.icon}
-            isSelected={selectedCategory === cat.id}
-            onPress={() => setSelectedCategory(cat.id)}
-          />
-        ))}
+        {/* Seasonal Specials — F13 */}
+        <SeasonalSpecials onProductPress={onProductPress} />
+
+        {/* Gold banner */}
+        <TouchableOpacity onPress={onGoldPress} activeOpacity={0.9} style={styles.goldWrap}>
+          <View style={[styles.goldBanner, { backgroundColor: '#1A1200', borderColor: '#4A3000' }]}>
+            <View style={styles.goldLeft}>
+              <Text style={[styles.goldTitle, { fontFamily: boldFont }]}>⭐ {t('becomeGold')}</Text>
+              <Text style={[styles.goldSub, { fontFamily: bodyFont }]}>{t('goldBenefit')}</Text>
+            </View>
+            <View style={styles.goldRight}>
+              <Text style={styles.goldCrown}>👑</Text>
+              <View style={[styles.goldBtn, { backgroundColor: '#F5A623' }]}>
+                <Text style={[styles.goldBtnText, { fontFamily: boldFont }]}>{isHindi ? 'जुड़ें' : 'Join'}</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Sabzi Basket Banner — F11 */}
+        <SabziBasketBanner onPress={onGoldPress} />
+
+        {/* Trust section */}
+        <View style={[styles.trustSection, { backgroundColor: colors.bgSecondary }]}>
+          <Text style={[styles.trustTitle, { color: colors.text, fontFamily: boldFont }]}>
+            {isHindi ? 'हम क्यों बेहतर हैं?' : 'Why Farm Fresh?'}
+          </Text>
+          <View style={styles.trustGrid}>
+            {[
+              { icon: '🌿', title: isHindi ? 'रोज़ ताज़ा' : 'Daily Fresh', sub: isHindi ? 'मंडी से सुबह' : 'Morning mandi' },
+              { icon: '📊', title: isHindi ? 'मंडी भाव' : 'Mandi Price', sub: isHindi ? 'थोक दर पर' : 'Wholesale rates' },
+              { icon: '⚡', title: isHindi ? 'तेज़ डिलीवरी' : 'Fast Delivery', sub: isHindi ? '2 घंटे में' : 'Within 2 hours' },
+              { icon: '✅', title: isHindi ? 'क्वालिटी चेक' : 'Quality Check', sub: isHindi ? '100% गारंटी' : '100% guarantee' },
+            ].map((item, i) => (
+              <View key={i} style={[styles.trustCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={styles.trustCardIcon}>{item.icon}</Text>
+                <Text style={[styles.trustCardTitle, { color: colors.text, fontFamily: semiBold }]}>{item.title}</Text>
+                <Text style={[styles.trustCardSub, { color: colors.textMuted, fontFamily: bodyFont }]}>{item.sub}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* Products header */}
-      <SectionHeader
-        title={selectedCategory === '1' ? 'All Produce' : CATEGORIES.find(c => c.id === selectedCategory)?.label ?? ''}
-        onSeeAll={() => navigation.navigate('Categories')}
-      />
-    </View>
-  ), [scrollY, selectedCategory, navigation]);
-
-  return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.bgDark} />
-
-      {/* Dark top zone for hero */}
-      <LinearGradient
-        colors={[Colors.bgDark, Colors.bgDark, Colors.bgSecondary]}
-        locations={[0, 0.35, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-
-      {/* Sticky search (appears on scroll) */}
-      <StickySearch scrollY={scrollY} onPress={() => navigation.navigate('Search')} />
-
-      {/* Main list */}
-      <AnimatedFlatList
-        data={filteredProducts}
-        keyExtractor={(item: any) => item.id}
-        renderItem={renderProduct}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Animated.Text style={styles.emptyText}>No produce in this category yet</Animated.Text>
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={Colors.logoGreen}
-            colors={[Colors.brandGreen]}
-          />
-        }
-      />
+      {/* WhatsApp FAB — F15 */}
+      <WhatsAppFAB />
     </View>
   );
 };
 
-// ── Styles ────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.bgDark,
-  },
-  listContent: {
-    paddingBottom: 120, // space for bottom nav
-  },
-
-  // ── Hero ────────────────────────────────────────────────
-  hero: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing.lg,
-  },
-  heroLeft: { flex: 1 },
-  heroGreeting: {
-    fontFamily: Font.jakartaMedium,
-    fontSize: 13,
-    color: Colors.textOnDarkMuted,
-    marginBottom: 6,
-  },
-  heroTitle: {
-    fontFamily: Font.outfitBold,
-    fontSize: 26,
-    color: Colors.textOnDark,
-    lineHeight: 34,
-  },
-  heroActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingTop: 4,
-  },
-  iconBtn: {},
-  iconBtnInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    ...Glass.subtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // ── Search ──────────────────────────────────────────────
-  searchBarWrap: {
-    marginHorizontal: Spacing.base,
-    marginBottom: Spacing.md,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.base,
-    height: 46,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontFamily: Font.jakartaRegular,
-    fontSize: 14,
-    color: Colors.textOnDarkSubtle,
-  },
-  searchKbd: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchKbdText: {
-    fontFamily: Font.jakartaRegular,
-    fontSize: 16,
-    color: Colors.textOnDarkSubtle,
-  },
-
-  // ── Sticky search ────────────────────────────────────────
-  stickyBar: {
-    position: 'absolute',
-    left: Spacing.base,
-    right: Spacing.base,
-    zIndex: 20,
-    paddingBottom: Spacing.sm,
-  },
-  searchBarSticky: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(10,26,15,0.92)',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.base,
-    height: 44,
-  },
-
-  // ── Ticker ──────────────────────────────────────────────
-  ticker: {
-    marginBottom: Spacing.md,
-  },
-
-  // ── Gold Banner ─────────────────────────────────────────
-  goldBannerWrap: {
-    marginHorizontal: Spacing.base,
-    marginBottom: Spacing.lg,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,200,0,0.2)',
-  },
-  goldBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
-  },
-  goldLeft: { flex: 1 },
-  goldTitle: {
-    fontFamily: Font.outfitSemiBold,
-    fontSize: 15,
-    color: '#FFD166',
-    marginBottom: 3,
-  },
-  goldSub: {
-    fontFamily: Font.jakartaRegular,
-    fontSize: 12,
-    color: 'rgba(255,209,102,0.6)',
-  },
-  goldPill: {
-    backgroundColor: '#FFD166',
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-  },
-  goldPillText: {
-    fontFamily: Font.outfitSemiBold,
-    fontSize: 13,
-    color: '#1A1200',
-  },
-
-  // ── Categories ──────────────────────────────────────────
-  categoryScroll: {
-    paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-  },
-  categoryPillActive: {
-    backgroundColor: Colors.brandGreen,
-    borderColor: Colors.brandGreen,
-  },
-  categoryLabel: {
-    fontFamily: Font.jakartaMedium,
-    fontSize: 13,
-    color: Colors.textOnDarkMuted,
-  },
-  categoryLabelActive: {
-    color: Colors.white,
-  },
-
-  // ── Section header ───────────────────────────────────────
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  sectionTitle: {
-    fontFamily: Font.outfitSemiBold,
-    fontSize: 18,
-    color: Colors.textOnDark,
-  },
-  seeAllRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  seeAll: {
-    fontFamily: Font.jakartaMedium,
-    fontSize: 13,
-    color: Colors.brandGreen,
-  },
-
-  // ── Product grid ────────────────────────────────────────
-  row: {
-    paddingHorizontal: Spacing.base,
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  emptyWrap: {
-    padding: Spacing.xxxl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontFamily: Font.jakartaRegular,
-    fontSize: 14,
-    color: Colors.textOnDarkMuted,
-  },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, gap: 10 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  locationBlock: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deliverLabel: { fontSize: 13 },
+  locationBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  locationBadgeText: { fontSize: 13 },
+  cartBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  cartEmoji: { fontSize: 20 },
+  scroll: { gap: 0 },
+  greetSection: { padding: 16, gap: 2 },
+  greetText: { fontSize: 22 },
+  greetSub: { fontSize: 14 },
+  bannerSection: { paddingLeft: 16, gap: 10 },
+  bannerScroll: { paddingRight: 16, gap: 12 },
+  banner: { height: 150, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden', marginRight: 12 },
+  bannerText: { flex: 1, gap: 6 },
+  bannerTitle: { fontSize: 20, color: '#FFFFFF' },
+  bannerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
+  bannerEmoji: { fontSize: 48 },
+  dotsRow: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, alignItems: 'center' },
+  dot: { height: 6, borderRadius: 999 },
+  section: { paddingHorizontal: 16, paddingTop: 24, gap: 14 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  sectionTitle: { fontSize: 18 },
+  sectionSub: { fontSize: 12, marginTop: 2 },
+  seeAll: { fontSize: 14, marginTop: 2 },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catItem: { width: CAT_SIZE, alignItems: 'center', gap: 6 },
+  catImageWrap: { borderRadius: 14, overflow: 'hidden', position: 'relative' },
+  catImage: { width: '100%', height: '100%' },
+  catEmojiOverlay: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 8, padding: 3 },
+  catEmoji: { fontSize: 14 },
+  catLabel: { fontSize: 11, textAlign: 'center' },
+  productGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  goldWrap: { marginHorizontal: 16, marginTop: 24 },
+  goldBanner: { borderRadius: 18, borderWidth: 1, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  goldLeft: { flex: 1, gap: 6 },
+  goldTitle: { fontSize: 16, color: '#F5A623' },
+  goldSub: { fontSize: 13, color: 'rgba(255,255,255,0.6)' },
+  goldRight: { alignItems: 'center', gap: 8 },
+  goldCrown: { fontSize: 36 },
+  goldBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+  goldBtnText: { color: '#1A1200', fontSize: 13 },
+  trustSection: { marginTop: 24, padding: 20, gap: 16 },
+  trustTitle: { fontSize: 18, textAlign: 'center' },
+  trustGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  trustCard: { width: (SCREEN_WIDTH - 40 - 10) / 2, borderRadius: 14, borderWidth: 1, padding: 14, gap: 5 },
+  trustCardIcon: { fontSize: 26 },
+  trustCardTitle: { fontSize: 14 },
+  trustCardSub: { fontSize: 12 },
 });
+
+export default HomeScreen;

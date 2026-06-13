@@ -1,285 +1,215 @@
-// ============================================================
-// FARM FRESH RN v4 — BottomNav
-// Liquid glass pill · 3 tabs (Search / Home / Cart)
-// Orders strip outside pill
-// ============================================================
-
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import Animated, {
-  useSharedValue, useAnimatedStyle,
-  withSpring, withTiming, interpolate, Extrapolation,
-} from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Font, Spacing, Radius, Glass, Shadow } from '../theme';
-import { AnimatedPressable } from './AnimatedPressable';
+import React from 'react';
 import {
-  IconSearch, IconHome, IconHomeFilled,
-  IconCart, IconOrders,
-} from './icons';
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../theme/LangContext';
+import { useCartStore } from '../stores/cartStore';
+import { fontFamily, spacing, fontSize } from '../theme/tokens';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
-const { width: W } = Dimensions.get('window');
-const PILL_W = W * 0.72;
-const TAB_COUNT = 3;
+type TabName = 'Home' | 'Search' | 'Cart' | 'Profile';
 
-export type BottomTabName = 'Home' | 'Search' | 'Cart';
-
-interface BottomNavProps {
-  activeTab: BottomTabName;
-  onTabPress: (tab: BottomTabName) => void;
-  onOrdersPress: () => void;
-  cartCount?: number;
+interface Props {
+  activeTab: TabName;
+  onTabPress: (tab: TabName) => void;
 }
 
-// ── Tab config ────────────────────────────────────────────
-const TABS: { name: BottomTabName; IconDefault: any; IconActive: any; label: string }[] = [
-  { name: 'Search', IconDefault: IconSearch,     IconActive: IconSearch,     label: 'Search'  },
-  { name: 'Home',   IconDefault: IconHome,        IconActive: IconHomeFilled, label: 'Home'    },
-  { name: 'Cart',   IconDefault: IconCart,        IconActive: IconCart,       label: 'Cart'    },
+const HomeIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V9.5Z"
+      fill={color}
+    />
+  </Svg>
+);
+
+const SearchIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="10.5" cy="10.5" r="6.5" stroke={color} strokeWidth="2" />
+    <Path d="M15.5 15.5L20 20" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+const CartIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M6 2L3 6V20C3 21.1 3.9 22 5 22H19C20.1 22 21 21.1 21 20V6L18 2H6Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M3 6H21" stroke={color} strokeWidth="2" />
+    <Path
+      d="M16 10C16 12.21 14.21 14 12 14C9.79 14 8 12.21 8 10"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+const ProfileIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="8" r="4" fill={color} />
+    <Path
+      d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+const TABS: { name: TabName; labelEn: string; labelHi: string }[] = [
+  { name: 'Home', labelEn: 'Home', labelHi: 'होम' },
+  { name: 'Search', labelEn: 'Search', labelHi: 'खोजें' },
+  { name: 'Cart', labelEn: 'Cart', labelHi: 'कार्ट' },
+  { name: 'Profile', labelEn: 'Profile', labelHi: 'प्रोफ़ाइल' },
 ];
 
-// ── Individual Tab ────────────────────────────────────────
-const NavTab = ({
-  tab, isActive, onPress, cartCount,
+const TabIcon = ({
+  name,
+  color,
+  size,
 }: {
-  tab: typeof TABS[0];
-  isActive: boolean;
-  onPress: () => void;
-  cartCount?: number;
+  name: TabName;
+  color: string;
+  size: number;
 }) => {
-  const scale = useSharedValue(1);
-  const iconScale = useSharedValue(1);
-  const labelOpacity = useSharedValue(isActive ? 1 : 0);
-  const labelWidth = useSharedValue(isActive ? 1 : 0);
-
-  useEffect(() => {
-    if (isActive) {
-      iconScale.value = withSpring(1.12, { damping: 10, stiffness: 200 });
-      labelOpacity.value = withTiming(1, { duration: 200 });
-      labelWidth.value = withSpring(1, { damping: 14, stiffness: 120 });
-    } else {
-      iconScale.value = withSpring(1, { damping: 12, stiffness: 200 });
-      labelOpacity.value = withTiming(0, { duration: 150 });
-      labelWidth.value = withSpring(0, { damping: 14, stiffness: 120 });
-    }
-  }, [isActive]);
-
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: iconScale.value }],
-  }));
-
-  const labelStyle = useAnimatedStyle(() => ({
-    opacity: labelOpacity.value,
-    maxWidth: interpolate(labelWidth.value, [0, 1], [0, 60], Extrapolation.CLAMP),
-    marginLeft: interpolate(labelWidth.value, [0, 1], [0, 6], Extrapolation.CLAMP),
-    overflow: 'hidden',
-  }));
-
-  const Icon = isActive ? tab.IconActive : tab.IconDefault;
-  const iconColor = isActive ? Colors.logoGreen : Colors.textOnDarkMuted;
-
-  return (
-    <AnimatedPressable
-      onPress={onPress}
-      scaleDown={0.88}
-      style={styles.tabWrap}
-    >
-      <View style={[styles.tab, isActive && styles.tabActive]}>
-        <Animated.View style={iconStyle}>
-          <Icon size={22} color={iconColor} strokeWidth={isActive ? 2.5 : 1.8} />
-        </Animated.View>
-
-        <Animated.Text style={[styles.tabLabel, { color: iconColor }, labelStyle]}>
-          {tab.label}
-        </Animated.Text>
-
-        {/* Cart badge */}
-        {tab.name === 'Cart' && cartCount && cartCount > 0 ? (
-          <View style={styles.cartBadge}>
-            <Animated.Text style={styles.cartBadgeText}>
-              {cartCount > 9 ? '9+' : cartCount}
-            </Animated.Text>
-          </View>
-        ) : null}
-      </View>
-    </AnimatedPressable>
-  );
+  switch (name) {
+    case 'Home': return <HomeIcon color={color} size={size} />;
+    case 'Search': return <SearchIcon color={color} size={size} />;
+    case 'Cart': return <CartIcon color={color} size={size} />;
+    case 'Profile': return <ProfileIcon color={color} size={size} />;
+  }
 };
 
-// ── Main BottomNav ────────────────────────────────────────
-export const BottomNav = ({
-  activeTab, onTabPress, onOrdersPress, cartCount = 0,
-}: BottomNavProps) => {
+const BottomNav: React.FC<Props> = ({ activeTab, onTabPress }) => {
+  const { colors } = useTheme();
+  const { isHindi } = useLang();
   const insets = useSafeAreaInsets();
-
-  const navOpacity = useSharedValue(0);
-  const navTranslateY = useSharedValue(30);
-
-  useEffect(() => {
-    navOpacity.value = withTiming(1, { duration: 400 });
-    navTranslateY.value = withSpring(0, { damping: 14, stiffness: 100 });
-  }, []);
-
-  const navStyle = useAnimatedStyle(() => ({
-    opacity: navOpacity.value,
-    transform: [{ translateY: navTranslateY.value }],
-  }));
+  const totalItems = useCartStore((s) => s.totalItems());
 
   return (
-    <Animated.View
+    <View
       style={[
         styles.container,
-        { paddingBottom: insets.bottom + Spacing.sm },
-        navStyle,
+        {
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          paddingBottom: insets.bottom + 4,
+        },
+        Platform.OS === 'ios' && styles.iosShadow,
+        Platform.OS === 'android' && { elevation: 12 },
       ]}
-      pointerEvents="box-none"
     >
-      {/* Orders strip — above pill, outside */}
-      <AnimatedPressable onPress={onOrdersPress} scaleDown={0.95} style={styles.ordersStripWrap}>
-        <View style={styles.ordersStrip}>
-          <IconOrders size={14} color={Colors.textOnDarkMuted} />
-          <Animated.Text style={styles.ordersStripText}>Your Orders</Animated.Text>
-          <View style={styles.ordersActiveDot} />
-        </View>
-      </AnimatedPressable>
+      {TABS.map((tab) => {
+        const isActive = activeTab === tab.name;
+        const color = isActive ? colors.primary : colors.textMuted;
+        const label = isHindi ? tab.labelHi : tab.labelEn;
 
-      {/* Liquid glass pill */}
-      <View style={styles.pillShadowWrap}>
-        <View style={styles.pill}>
-          {/* Blur background */}
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-
-          {/* Glass overlay */}
-          <View style={styles.pillGlass} pointerEvents="none" />
-
-          {/* Tabs */}
-          <View style={styles.pillInner}>
-            {TABS.map(tab => (
-              <NavTab
-                key={tab.name}
-                tab={tab}
-                isActive={activeTab === tab.name}
-                onPress={() => onTabPress(tab.name)}
-                cartCount={tab.name === 'Cart' ? cartCount : 0}
-              />
-            ))}
-          </View>
-        </View>
-      </View>
-    </Animated.View>
+        return (
+          <TouchableOpacity
+            key={tab.name}
+            style={styles.tab}
+            onPress={() => onTabPress(tab.name)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconWrap}>
+              {isActive && (
+                <View
+                  style={[styles.activePill, { backgroundColor: colors.primaryLight }]}
+                />
+              )}
+              <TabIcon name={tab.name} color={color} size={22} />
+              {tab.name === 'Cart' && totalItems > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.red }]}>
+                  <Text style={styles.badgeText}>
+                    {totalItems > 9 ? '9+' : totalItems}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color,
+                  fontFamily: isActive
+                    ? (isHindi ? 'Baloo2-SemiBold' : 'Outfit-SemiBold')
+                    : (isHindi ? 'Baloo2-Regular' : 'Outfit-Regular'),
+                },
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 };
 
-// ── Styles ────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.base,
-  },
-
-  // ── Orders strip ─────────────────────────────────────────
-  ordersStripWrap: {
-    alignSelf: 'center',
-  },
-  ordersStrip: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
+    borderTopWidth: 1,
+    paddingTop: 8,
   },
-  ordersStripText: {
-    fontFamily: Font.jakartaMedium,
-    fontSize: 12,
-    color: Colors.textOnDarkMuted,
-  },
-  ordersActiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.brandGreen,
-  },
-
-  // ── Pill ─────────────────────────────────────────────────
-  pillShadowWrap: {
-    borderRadius: Radius.full,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  pill: {
-    width: PILL_W,
-    height: 62,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.borderGlassStrong,
-  },
-  pillGlass: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  pillInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: Spacing.sm,
-  },
-
-  // ── Tab ──────────────────────────────────────────────────
-  tabWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
+  iosShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   tab: {
-    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+  },
+  iconWrap: {
+    width: 44,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    minWidth: 44,
-    height: 44,
   },
-  tabActive: {
-    backgroundColor: 'rgba(128,239,128,0.12)',
-  },
-  tabLabel: {
-    fontFamily: Font.outfitMedium,
-    fontSize: 13,
-  },
-
-  // ── Cart badge ───────────────────────────────────────────
-  cartBadge: {
+  activePill: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: 2,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.accentOrange,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  cartBadgeText: {
-    fontFamily: Font.outfitBold,
+  badgeText: {
+    color: '#FFFFFF',
     fontSize: 9,
-    color: Colors.white,
+    fontFamily: 'Outfit-Bold',
+  },
+  label: {
+    fontSize: 11,
   },
 });
+
+export default BottomNav;

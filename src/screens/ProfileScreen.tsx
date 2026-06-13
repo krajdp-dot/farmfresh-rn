@@ -1,269 +1,539 @@
-// ============================================================
-// FARM FRESH RN v4 — ProfileScreen
-// User info · Stats · Settings rows · Logout
-// ============================================================
-
-import React, { useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, StatusBar,
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, Switch, StatusBar, Alert,
 } from 'react-native';
-import Animated, {
-  useSharedValue, useAnimatedStyle,
-  withSpring, withDelay, withTiming, Easing,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Font, Spacing, Radius, Glass } from '../theme';
-import { AnimatedPressable } from '../components/AnimatedPressable';
-import {
-  IconChevronRight, IconLeaf, IconTruck, IconBell,
-  IconLocation, IconGold, IconPhone,
-} from '../components/icons';
-import Svg, { Circle, Path, Ellipse } from 'react-native-svg';
+import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../theme/LangContext';
+import { useAuth } from '../context/AuthContext';
+import { spacing, radius, SCREEN_WIDTH } from '../theme/tokens';
+import { ReferralCard } from '../components/features';
 
-// ── Avatar initials ───────────────────────────────────────
-const Avatar = ({ name }: { name: string }) => {
-  const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-  return (
-    <View style={styles.avatar}>
-      <LinearGradient colors={[Colors.brandGreenLight, Colors.brandGreen]} style={styles.avatarGrad}>
-        <Animated.Text style={styles.avatarText}>{initials}</Animated.Text>
-      </LinearGradient>
-    </View>
-  );
-};
+interface Props {
+  onOrdersPress: () => void;
+}
 
-// ── Stat card ─────────────────────────────────────────────
-const StatCard = ({
-  label, value, sub, index,
-}: { label: string; value: string; sub: string; index: number }) => {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.9);
-
-  useEffect(() => {
-    opacity.value = withDelay(200 + index * 80, withTiming(1, { duration: 300 }));
-    scale.value = withDelay(200 + index * 80, withSpring(1, { damping: 14, stiffness: 150 }));
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value, transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={[styles.statCard, style]}>
-      <Animated.Text style={styles.statValue}>{value}</Animated.Text>
-      <Animated.Text style={styles.statLabel}>{label}</Animated.Text>
-      <Animated.Text style={styles.statSub}>{sub}</Animated.Text>
-    </Animated.View>
-  );
-};
-
-// ── Settings row ──────────────────────────────────────────
-const SettingsRow = ({
-  Icon, label, sub, onPress, isDestructive, index,
-}: {
-  Icon: any; label: string; sub?: string;
-  onPress: () => void; isDestructive?: boolean; index: number;
-}) => {
-  const opacity = useSharedValue(0);
-  const translateX = useSharedValue(-12);
-
-  useEffect(() => {
-    opacity.value = withDelay(index * 60, withTiming(1, { duration: 300 }));
-    translateX.value = withDelay(index * 60, withSpring(0, { damping: 14, stiffness: 100 }));
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value, transform: [{ translateX: translateX.value }],
-  }));
-
-  return (
-    <Animated.View style={style}>
-      <AnimatedPressable onPress={onPress} scaleDown={0.98}>
-        <View style={styles.settingsRow}>
-          <View style={[styles.settingsIcon, isDestructive && styles.settingsIconDestructive]}>
-            <Icon size={18} color={isDestructive ? Colors.error : Colors.brandGreen} />
-          </View>
-          <View style={styles.settingsText}>
-            <Animated.Text style={[styles.settingsLabel, isDestructive && { color: Colors.error }]}>
-              {label}
-            </Animated.Text>
-            {sub && <Animated.Text style={styles.settingsSub}>{sub}</Animated.Text>}
-          </View>
-          {!isDestructive && (
-            <IconChevronRight size={16} color={Colors.textMuted} strokeWidth={2} />
-          )}
-        </View>
-      </AnimatedPressable>
-    </Animated.View>
-  );
-};
-
-// ── Main Screen ───────────────────────────────────────────
-export const ProfileScreen = ({ navigation }: { navigation: any }) => {
+const ProfileScreen: React.FC<Props> = ({ onOrdersPress }) => {
+  const { colors, isDark, toggleTheme } = useTheme();
+  const { t, isHindi, toggleLang, lang } = useLang();
+  const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-  const headerOpacity = useSharedValue(0);
-  const headerY = useSharedValue(-20);
+  const [notifications, setNotifications] = useState(true);
 
-  useEffect(() => {
-    headerOpacity.value = withTiming(1, { duration: 380 });
-    headerY.value = withSpring(0, { damping: 14, stiffness: 100 });
-  }, []);
+  const boldFont   = isHindi ? 'Baloo2-Bold'     : 'Outfit-Bold';
+  const bodyFont   = isHindi ? 'Baloo2-Regular'  : 'Outfit-Regular';
+  const semiBold   = isHindi ? 'Baloo2-SemiBold' : 'Outfit-SemiBold';
+  const medFont    = isHindi ? 'Baloo2-Medium'   : 'Outfit-Medium';
+  const exBold     = isHindi ? 'Baloo2-Bold'     : 'Outfit-ExtraBold';
 
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-    transform: [{ translateY: headerY.value }],
-  }));
+  const handleLogout = () => {
+    Alert.alert(
+      isHindi ? 'लॉग आउट' : 'Logout',
+      isHindi ? 'क्या आप वाकई लॉग आउट करना चाहते हैं?' : 'Are you sure you want to logout?',
+      [
+        { text: isHindi ? 'रद्द करें' : 'Cancel', style: 'cancel' },
+        { text: isHindi ? 'हाँ, लॉग आउट' : 'Yes, Logout', style: 'destructive', onPress: signOut },
+      ]
+    );
+  };
 
-  const { signOut } = useAuth();
-  // Mock user data — replace with auth context
-  const user = { name: 'Rajdeep Kumar', phone: '+91 74800 62299' };
+  const Row = ({
+    icon, label, sublabel, onPress, right, destructive = false, noBorder = false,
+  }: {
+    icon: string; label: string; sublabel?: string;
+    onPress?: () => void; right?: React.ReactNode;
+    destructive?: boolean; noBorder?: boolean;
+  }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      style={[styles.row, !noBorder && { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}
+    >
+      <View style={[styles.rowIconWrap, { backgroundColor: destructive ? colors.redLight : colors.bgSecondary }]}>
+        <Text style={styles.rowIconText}>{icon}</Text>
+      </View>
+      <View style={styles.rowContent}>
+        <Text style={[styles.rowLabel, {
+          color: destructive ? colors.red : colors.text,
+          fontFamily: medFont,
+        }]}>
+          {label}
+        </Text>
+        {sublabel && (
+          <Text style={[styles.rowSublabel, { color: colors.textMuted, fontFamily: bodyFont }]}>
+            {sublabel}
+          </Text>
+        )}
+      </View>
+      {right ?? (onPress && <Text style={[styles.rowArrow, { color: colors.textMuted }]}>›</Text>)}
+    </TouchableOpacity>
+  );
 
-  const SETTINGS = [
-    { Icon: IconLocation, label: 'Delivery Address',   sub: 'Bhagalpur, Bihar 812001', route: null     },
-    { Icon: IconBell,     label: 'Notifications',      sub: 'Order updates, offers',   route: null     },
-    { Icon: IconGold,     label: 'Farm Fresh Gold',    sub: 'Free delivery + more',    route: 'Gold'   },
-    { Icon: IconTruck,    label: 'Order History',      sub: 'All your orders',         route: 'Orders' },
-    { Icon: IconPhone,    label: 'Change Number',      sub: user.phone,                route: null     },
-  ];
+  const SectionHeader = ({ title }: { title: string }) => (
+    <Text style={[styles.sectionHeader, { color: colors.textMuted, fontFamily: semiBold }]}>
+      {title}
+    </Text>
+  );
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.bgDark} />
-      <LinearGradient colors={[Colors.bgDark, Colors.bgSecondary]} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.bg} />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text, fontFamily: boldFont }]}>
+          {t('myProfile')}
+        </Text>
+      </View>
 
-        {/* Hero */}
-        <Animated.View style={[styles.hero, headerStyle]}>
-          <Avatar name={user.name} />
-          <View style={styles.heroText}>
-            <Animated.Text style={styles.userName}>{user.name}</Animated.Text>
-            <View style={styles.phoneRow}>
-              <IconPhone size={13} color={Colors.textOnDarkMuted} />
-              <Animated.Text style={styles.userPhone}>{user.phone}</Animated.Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* Profile card */}
+        <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
+          <View style={styles.profileBgBlob} />
+          <View style={styles.profileBgBlob2} />
+
+          <View style={styles.profileMain}>
+            <View style={styles.avatarWrap}>
+              <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Text style={styles.avatarText}>{user?.phone?.slice(-2) ?? '👤'}</Text>
+              </View>
+              <View style={[styles.avatarOnline, { backgroundColor: '#4CAF50' }]} />
             </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { fontFamily: boldFont }]}>
+                {user?.name ?? (isHindi ? 'मेरा अकाउंट' : 'My Account')}
+              </Text>
+              <Text style={[styles.profilePhone, { fontFamily: bodyFont }]}>
+                +91 {user?.phone}
+              </Text>
+              <View style={styles.memberRow}>
+                <View style={[styles.memberBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <Text style={[styles.memberBadgeText, { fontFamily: semiBold }]}>
+                    🌿 {isHindi ? 'नियमित सदस्य' : 'Regular Member'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <TouchableOpacity activeOpacity={0.8}>
+              <View style={[styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+                <Text style={styles.editBtnText}>✏️</Text>
+              </View>
+            </TouchableOpacity>
           </View>
-          <View style={styles.goldBadge}>
-            <IconLeaf size={12} color={Colors.logoGreen} />
-            <Animated.Text style={styles.goldBadgeText}>Member</Animated.Text>
-          </View>
-        </Animated.View>
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <StatCard label="Orders"   value="12"   sub="Total"       index={0} />
-          <StatCard label="Saved"    value="₹340" sub="vs retail"   index={1} />
-          <StatCard label="Since"    value="Apr"  sub="2025"        index={2} />
+          {/* Stats row */}
+          <View style={[styles.statsRow, { backgroundColor: 'rgba(0,0,0,0.15)', borderTopColor: 'rgba(255,255,255,0.12)' }]}>
+            {[
+              { val: '12', label: isHindi ? 'ऑर्डर' : 'Orders' },
+              { val: '₹340', label: isHindi ? 'बचत' : 'Saved' },
+              { val: '4.9★', label: isHindi ? 'रेटिंग' : 'Rating' },
+            ].map((stat, i) => (
+              <React.Fragment key={i}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statVal, { fontFamily: exBold }]}>{stat.val}</Text>
+                  <Text style={[styles.statLabel, { fontFamily: bodyFont }]}>{stat.label}</Text>
+                </View>
+                {i < 2 && <View style={[styles.statDivider, { backgroundColor: 'rgba(255,255,255,0.2)' }]} />}
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
-        {/* Settings */}
+        {/* Orders quick access */}
         <View style={styles.section}>
-          <Animated.Text style={[styles.sectionTitle, headerStyle]}>Account</Animated.Text>
-          <View style={styles.settingsCard}>
-            {SETTINGS.map((item, i) => (
-              <View key={i}>
-                <SettingsRow
-                  Icon={item.Icon}
-                  label={item.label}
-                  sub={item.sub}
-                  index={i}
-                  onPress={() => item.route ? navigation.navigate(item.route) : null}
-                />
-                {i < SETTINGS.length - 1 && <View style={styles.separator} />}
+          <TouchableOpacity onPress={onOrdersPress} activeOpacity={0.85}>
+            <View style={[styles.ordersCard, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+              <View style={styles.ordersCardLeft}>
+                <Text style={styles.ordersCardEmoji}>📦</Text>
+                <View>
+                  <Text style={[styles.ordersCardTitle, { color: colors.primary, fontFamily: boldFont }]}>
+                    {t('myOrders')}
+                  </Text>
+                  <Text style={[styles.ordersCardSub, { color: colors.textSecondary, fontFamily: bodyFont }]}>
+                    {isHindi ? '3 पिछले · 1 सक्रिय ऑर्डर' : '3 past · 1 active order'}
+                  </Text>
+                </View>
               </View>
-            ))}
+              <Text style={[styles.ordersCardArrow, { color: colors.primary }]}>›</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Referral Card — F10 */}
+        <ReferralCard />
+
+        {/* Gold upgrade */}
+        <View style={styles.section}>
+          <TouchableOpacity activeOpacity={0.9}>
+            <View style={[styles.goldCard, { backgroundColor: '#1A1200', borderColor: '#4A3000' }]}>
+              <View style={styles.goldCardBg} />
+              <View style={styles.goldCardContent}>
+                <View>
+                  <Text style={[styles.goldCardTitle, { fontFamily: boldFont }]}>
+                    ⭐ {isHindi ? 'गोल्ड सदस्यता पाएं' : 'Become Gold Member'}
+                  </Text>
+                  <Text style={[styles.goldCardSub, { fontFamily: bodyFont }]}>
+                    {isHindi ? 'मुफ़्त डिलीवरी + विशेष छूट + प्राथमिकता' : 'Free delivery + Exclusive deals + Priority'}
+                  </Text>
+                  <View style={styles.goldFeatures}>
+                    {[isHindi ? '✓ ₹49/सप्ताह' : '✓ ₹49/week', isHindi ? '✓ पहला सप्ताह मुफ़्त' : '✓ First week free'].map((f, i) => (
+                      <Text key={i} style={[styles.goldFeatureText, { fontFamily: medFont }]}>{f}</Text>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.goldCardRight}>
+                  <Text style={styles.goldCrown}>👑</Text>
+                  <View style={[styles.goldUpgradeBtn, { backgroundColor: '#F5A623' }]}>
+                    <Text style={[styles.goldUpgradeText, { fontFamily: boldFont }]}>
+                      {isHindi ? 'जुड़ें' : 'Join'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Settings section */}
+        <View style={styles.section}>
+          <SectionHeader title={isHindi ? '⚙️ सेटिंग्स' : '⚙️ SETTINGS'} />
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {/* Dark / Light mode */}
+            <Row
+              icon={isDark ? '🌙' : '☀️'}
+              label={isDark ? t('darkMode') : t('lightMode')}
+              sublabel={isHindi ? 'ऐप की थीम बदलें' : 'Change app appearance'}
+              right={
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor={colors.border}
+                />
+              }
+            />
+
+            {/* Language toggle */}
+            <Row
+              icon="🌐"
+              label={t('language')}
+              sublabel={isHindi ? 'English / हिन्दी' : 'English / Hindi'}
+              right={
+                <View style={[styles.langToggle, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+                  <TouchableOpacity onPress={() => lang !== 'en' && toggleLang()} activeOpacity={0.8}>
+                    <View style={[styles.langOption, lang === 'en' && { backgroundColor: colors.primary, borderRadius: 8 }]}>
+                      <Text style={[styles.langOptionText, {
+                        color: lang === 'en' ? '#fff' : colors.textMuted,
+                        fontFamily: lang === 'en' ? semiBold : bodyFont,
+                      }]}>EN</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => lang !== 'hi' && toggleLang()} activeOpacity={0.8}>
+                    <View style={[styles.langOption, lang === 'hi' && { backgroundColor: colors.primary, borderRadius: 8 }]}>
+                      <Text style={[styles.langOptionText, {
+                        color: lang === 'hi' ? '#fff' : colors.textMuted,
+                        fontFamily: lang === 'hi' ? semiBold : bodyFont,
+                      }]}>हि</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              }
+            />
+
+            {/* Notifications */}
+            <Row
+              icon="🔔"
+              label={isHindi ? 'नोटिफिकेशन' : 'Notifications'}
+              sublabel={isHindi ? 'ऑर्डर अपडेट, ऑफर' : 'Order updates, offers'}
+              noBorder
+              right={
+                <Switch
+                  value={notifications}
+                  onValueChange={setNotifications}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor={colors.border}
+                />
+              }
+            />
+          </View>
+        </View>
+
+        {/* Account section */}
+        <View style={styles.section}>
+          <SectionHeader title={isHindi ? '👤 अकाउंट' : '👤 ACCOUNT'} />
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Row
+              icon="✏️"
+              label={t('editProfile')}
+              sublabel={isHindi ? 'नाम, फोटो बदलें' : 'Change name, photo'}
+              onPress={() => {}}
+            />
+            <Row
+              icon="📍"
+              label={t('myAddresses')}
+              sublabel={isHindi ? '2 पते सेव हैं' : '2 saved addresses'}
+              onPress={() => {}}
+            />
+            <Row
+              icon="💳"
+              label={isHindi ? 'भुगतान विधि' : 'Payment Methods'}
+              sublabel={isHindi ? 'UPI, COD' : 'UPI, Cash on Delivery'}
+              onPress={() => {}}
+              noBorder
+            />
+          </View>
+        </View>
+
+        {/* Support */}
+        <View style={styles.section}>
+          <SectionHeader title={isHindi ? '💬 सहायता' : '💬 SUPPORT'} />
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Row
+              icon="💬"
+              label={t('helpSupport')}
+              sublabel={isHindi ? 'WhatsApp, कॉल' : 'WhatsApp, Call us'}
+              onPress={() => {}}
+            />
+            <Row
+              icon="⭐"
+              label={isHindi ? 'ऐप रेट करें' : 'Rate the App'}
+              sublabel={isHindi ? 'हमें बेहतर बनाएं' : 'Help us improve'}
+              onPress={() => {}}
+            />
+            <Row
+              icon="📜"
+              label={isHindi ? 'नियम & शर्तें' : 'Terms & Privacy'}
+              sublabel={isHindi ? 'गोपनीयता नीति' : 'Privacy policy'}
+              onPress={() => {}}
+              noBorder
+            />
+          </View>
+        </View>
+
+        {/* About */}
+        <View style={styles.section}>
+          <SectionHeader title={isHindi ? 'ℹ️ ऐप के बारे में' : 'ℹ️ ABOUT'} />
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Row
+              icon="🌿"
+              label={isHindi ? 'हमारे बारे में' : 'About Farm Fresh'}
+              sublabel={isHindi ? 'भागलपुर, बिहार से' : 'From Bhagalpur, Bihar'}
+              onPress={() => {}}
+            />
+            <Row
+              icon="🔄"
+              label={isHindi ? 'अपडेट जांचें' : 'Check for Updates'}
+              sublabel={isHindi ? 'वर्तमान: v4.0' : 'Current: v4.0'}
+              onPress={() => {}}
+              noBorder
+            />
           </View>
         </View>
 
         {/* Logout */}
         <View style={styles.section}>
-          <View style={styles.settingsCard}>
-            <SettingsRow
-              Icon={IconPhone}
-              label="Sign Out"
-              isDestructive
-              index={0}
-              onPress={signOut}
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Row
+              icon="🚪"
+              label={t('logout')}
+              sublabel={isHindi ? `+91 ${user?.phone} से लॉग आउट करें` : `Logout from +91 ${user?.phone}`}
+              onPress={handleLogout}
+              destructive
+              noBorder
             />
           </View>
         </View>
 
-        {/* Version */}
-        <Animated.Text style={[styles.version, headerStyle]}>
-          Farm Fresh v4.0 · lovefarmfresh.in
-        </Animated.Text>
+        {/* Footer */}
+        <View style={styles.footerBlock}>
+          <Text style={styles.footerEmoji}>🌿</Text>
+          <Text style={[styles.footerTitle, { color: colors.text, fontFamily: boldFont }]}>Farm Fresh</Text>
+          <Text style={[styles.footerSub, { color: colors.textMuted, fontFamily: bodyFont }]}>
+            {isHindi ? 'भागलपुर, बिहार में बना' : 'Made in Bhagalpur, Bihar'}
+          </Text>
+          <Text style={[styles.footerVersion, { color: colors.textMuted, fontFamily: bodyFont }]}>
+            v4.0.0 · lovefarmfresh.in
+          </Text>
+        </View>
 
+        <View style={{ height: 24 }} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bgDark },
-  scroll: { paddingHorizontal: Spacing.base, paddingBottom: 120, gap: Spacing.lg },
-
-  // ── Hero ────────────────────────────────────────────────
-  hero: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingTop: Spacing.lg, gap: Spacing.md,
+  container: { flex: 1 },
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
   },
+  headerTitle: { fontSize: 22 },
+  scroll: { gap: 0 },
+
+  // Profile card
+  profileCard: {
+    margin: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  profileBgBlob: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -80,
+    right: -60,
+  },
+  profileBgBlob2: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    bottom: -40,
+    left: -20,
+  },
+  profileMain: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 18,
+  },
+  avatarWrap: { position: 'relative' },
   avatar: {
-    width: 64, height: 64, borderRadius: 32, overflow: 'hidden',
-    shadowColor: Colors.brandGreen, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarGrad: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: Font.outfitBold, fontSize: 22, color: Colors.white },
-  heroText: { flex: 1, gap: 5 },
-  userName: { fontFamily: Font.outfitBold, fontSize: 20, color: Colors.textOnDark },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  userPhone: { fontFamily: Font.jakartaRegular, fontSize: 13, color: Colors.textOnDarkMuted },
-  goldBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(128,239,128,0.12)',
-    borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 5,
-    borderWidth: 1, borderColor: 'rgba(128,239,128,0.25)',
+  avatarText: { fontSize: 22, color: '#FFFFFF' },
+  avatarOnline: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#2D8A4E',
   },
-  goldBadgeText: { fontFamily: Font.jakartaSemiBold, fontSize: 11, color: Colors.logoGreen },
+  profileInfo: { flex: 1, gap: 4 },
+  profileName: { fontSize: 18, color: '#FFFFFF' },
+  profilePhone: { fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+  memberRow: { flexDirection: 'row', marginTop: 2 },
+  memberBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  memberBadgeText: { color: '#FFFFFF', fontSize: 12 },
+  editBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  editBtnText: { fontSize: 18 },
+  statsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statVal: { fontSize: 18, color: '#FFFFFF' },
+  statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  statDivider: { width: 1, height: '80%', alignSelf: 'center' },
 
-  // ── Stats ────────────────────────────────────────────────
-  statsRow: { flexDirection: 'row', gap: Spacing.sm },
-  statCard: {
-    flex: 1, backgroundColor: Colors.bgSecondary,
-    borderRadius: Radius.md, padding: Spacing.md,
-    alignItems: 'center', gap: 3,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  statValue: { fontFamily: Font.outfitBold, fontSize: 20, color: Colors.textPrimary },
-  statLabel: { fontFamily: Font.jakartaSemiBold, fontSize: 12, color: Colors.textSecondary },
-  statSub: { fontFamily: Font.jakartaRegular, fontSize: 11, color: Colors.textMuted },
+  // Section
+  section: { paddingHorizontal: 16, paddingBottom: 16 },
+  sectionHeader: { fontSize: 11, letterSpacing: 0.8, marginBottom: 8 },
 
-  // ── Section ──────────────────────────────────────────────
-  section: { gap: Spacing.sm },
-  sectionTitle: { fontFamily: Font.outfitSemiBold, fontSize: 16, color: Colors.textOnDark },
-  settingsCard: {
-    backgroundColor: Colors.bgSecondary, borderRadius: Radius.lg,
-    overflow: 'hidden', borderWidth: 1, borderColor: Colors.borderLight,
+  // Orders card
+  ordersCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
   },
-  settingsRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, gap: Spacing.md,
-  },
-  settingsIcon: {
-    width: 38, height: 38, borderRadius: Radius.sm,
-    backgroundColor: 'rgba(45,138,78,0.10)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  settingsIconDestructive: { backgroundColor: 'rgba(239,68,68,0.08)' },
-  settingsText: { flex: 1, gap: 2 },
-  settingsLabel: { fontFamily: Font.jakartaSemiBold, fontSize: 15, color: Colors.textPrimary },
-  settingsSub: { fontFamily: Font.jakartaRegular, fontSize: 12, color: Colors.textMuted },
-  separator: { height: 1, backgroundColor: Colors.borderLight, marginLeft: 70 },
+  ordersCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ordersCardEmoji: { fontSize: 28 },
+  ordersCardTitle: { fontSize: 15 },
+  ordersCardSub: { fontSize: 12, marginTop: 2 },
+  ordersCardArrow: { fontSize: 24 },
 
-  version: {
-    fontFamily: Font.jakartaRegular, fontSize: 12,
-    color: Colors.textOnDarkSubtle, textAlign: 'center', paddingBottom: Spacing.md,
+  // Gold card
+  goldCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
+  goldCardBg: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#F5A623',
+    opacity: 0.08,
+  },
+  goldCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  goldCardTitle: { fontSize: 15, color: '#F5A623', marginBottom: 4 },
+  goldCardSub: { fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 17, marginBottom: 8 },
+  goldFeatures: { gap: 2 },
+  goldFeatureText: { color: '#F5A623', fontSize: 12 },
+  goldCardRight: { alignItems: 'center', gap: 8 },
+  goldCrown: { fontSize: 34 },
+  goldUpgradeBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 10 },
+  goldUpgradeText: { color: '#1A1200', fontSize: 13 },
+
+  // Card
+  card: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  rowIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowIconText: { fontSize: 19 },
+  rowContent: { flex: 1 },
+  rowLabel: { fontSize: 15 },
+  rowSublabel: { fontSize: 12, marginTop: 1 },
+  rowArrow: { fontSize: 22 },
+
+  // Lang toggle
+  langToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  langOption: { paddingHorizontal: 11, paddingVertical: 5 },
+  langOptionText: { fontSize: 13 },
+
+  // Footer
+  footerBlock: { alignItems: 'center', paddingVertical: 24, gap: 4 },
+  footerEmoji: { fontSize: 32 },
+  footerTitle: { fontSize: 18 },
+  footerSub: { fontSize: 13 },
+  footerVersion: { fontSize: 11, marginTop: 4 },
 });
+
+export default ProfileScreen;

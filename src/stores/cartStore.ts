@@ -1,151 +1,78 @@
 import { create } from 'zustand';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface CartItem {
-  productId: string;
+  id: string;
   name: string;
-  nameHi?: string;
-  price: number;         // price per unit
-  mrp?: number;
-  unit: string;          // 'kg' | 'piece' | 'dozen'
-  qty: number;           // qty in cart (in units)
-  step: number;          // increment step (0.5 for half-kg, 1 for piece)
-  minQty: number;
-  maxQty: number;
-  image?: string;
-  category?: string;
+  nameHi: string;
+  price: number;
+  unit: string;
+  image: string;
+  qty: number;
+  mandiPrice?: number;
 }
 
-export interface CartState {
-  items: Record<string, CartItem>;  // keyed by productId
-  deliverySlot: 'morning' | 'evening';
-  deliveryDate: 'today' | 'tomorrow';
-  isCartOpen: boolean;
-
-  // Actions
+interface CartStore {
+  items: CartItem[];
   addItem: (item: Omit<CartItem, 'qty'>) => void;
-  removeItem: (productId: string) => void;
-  incrementQty: (productId: string) => void;
-  decrementQty: (productId: string) => void;
-  setQty: (productId: string, qty: number) => void;
+  removeItem: (id: string) => void;
+  updateQty: (id: string, qty: number) => void;
   clearCart: () => void;
-
-  // Slot
-  setSlot: (slot: 'morning' | 'evening') => void;
-  setDate: (date: 'today' | 'tomorrow') => void;
-
-  // Drawer
-  openCart: () => void;
-  closeCart: () => void;
-
-  // Computed (selectors)
-  getQty: (productId: string) => number;
-  getItemCount: () => number;
-  getSubtotal: () => number;
-  getDeliveryFee: (freeThreshold?: number, deliveryFee?: number) => number;
-  getTotal: (freeThreshold?: number, deliveryFee?: number) => number;
-  isEmpty: () => boolean;
+  getQty: (id: string) => number;
+  totalItems: () => number;
+  totalPrice: () => number;
+  hydrate: () => Promise<void>;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
+export const useCartStore = create<CartStore>((set, get) => ({
+  items: [],
 
-export const useCartStore = create<CartState>((set, get) => ({
-  items: {},
-  deliverySlot: 'morning',
-  deliveryDate: 'today',
-  isCartOpen: false,
-
-  addItem: (itemData) => {
-    const { items } = get();
-    const existing = items[itemData.productId];
+  addItem: (item) => {
+    const existing = get().items.find((i) => i.id === item.id);
+    let updated: CartItem[];
     if (existing) {
-      // increment if already in cart
-      const newQty = Math.min(existing.qty + existing.step, existing.maxQty);
-      set({ items: { ...items, [itemData.productId]: { ...existing, qty: newQty } } });
+      updated = get().items.map((i) =>
+        i.id === item.id ? { ...i, qty: i.qty + 1 } : i
+      );
     } else {
-      set({
-        items: {
-          ...items,
-          [itemData.productId]: { ...itemData, qty: itemData.minQty },
-        },
-      });
+      updated = [...get().items, { ...item, qty: 1 }];
     }
+    set({ items: updated });
+    AsyncStorage.setItem('cart', JSON.stringify(updated));
   },
 
-  removeItem: (productId) => {
-    const { items } = get();
-    const next = { ...items };
-    delete next[productId];
-    set({ items: next });
+  removeItem: (id) => {
+    const updated = get().items.filter((i) => i.id !== id);
+    set({ items: updated });
+    AsyncStorage.setItem('cart', JSON.stringify(updated));
   },
 
-  incrementQty: (productId) => {
-    const { items } = get();
-    const item = items[productId];
-    if (!item) return;
-    const newQty = Math.min(item.qty + item.step, item.maxQty);
-    set({ items: { ...items, [productId]: { ...item, qty: newQty } } });
-  },
-
-  decrementQty: (productId) => {
-    const { items } = get();
-    const item = items[productId];
-    if (!item) return;
-    const newQty = item.qty - item.step;
-    if (newQty < item.minQty) {
-      // Remove from cart
-      const next = { ...items };
-      delete next[productId];
-      set({ items: next });
-    } else {
-      set({ items: { ...items, [productId]: { ...item, qty: newQty } } });
-    }
-  },
-
-  setQty: (productId, qty) => {
-    const { items } = get();
-    const item = items[productId];
-    if (!item) return;
+  updateQty: (id, qty) => {
+    let updated: CartItem[];
     if (qty <= 0) {
-      const next = { ...items };
-      delete next[productId];
-      set({ items: next });
+      updated = get().items.filter((i) => i.id !== id);
     } else {
-      const clamped = Math.max(item.minQty, Math.min(qty, item.maxQty));
-      set({ items: { ...items, [productId]: { ...item, qty: clamped } } });
+      updated = get().items.map((i) => (i.id === id ? { ...i, qty } : i));
     }
+    set({ items: updated });
+    AsyncStorage.setItem('cart', JSON.stringify(updated));
   },
 
-  clearCart: () => set({ items: {} }),
-
-  setSlot: (slot) => set({ deliverySlot: slot }),
-  setDate: (date) => set({ deliveryDate: date }),
-
-  openCart: () => set({ isCartOpen: true }),
-  closeCart: () => set({ isCartOpen: false }),
-
-  // ─── Selectors ──────────────────────────────────────────────────────────────
-
-  getQty: (productId) => get().items[productId]?.qty ?? 0,
-
-  getItemCount: () =>
-    Object.values(get().items).reduce((sum, item) => sum + 1, 0),  // count unique items
-
-  getSubtotal: () =>
-    Object.values(get().items).reduce(
-      (sum, item) => sum + item.price * item.qty,
-      0
-    ),
-
-  getDeliveryFee: (freeThreshold = 299, deliveryFee = 29) => {
-    const subtotal = get().getSubtotal();
-    return subtotal >= freeThreshold ? 0 : deliveryFee;
+  clearCart: () => {
+    set({ items: [] });
+    AsyncStorage.removeItem('cart');
   },
 
-  getTotal: (freeThreshold = 299, deliveryFee = 29) => {
-    return get().getSubtotal() + get().getDeliveryFee(freeThreshold, deliveryFee);
-  },
+  getQty: (id) => get().items.find((i) => i.id === id)?.qty ?? 0,
 
-  isEmpty: () => Object.keys(get().items).length === 0,
+  totalItems: () => get().items.reduce((sum, i) => sum + i.qty, 0),
+
+  totalPrice: () => get().items.reduce((sum, i) => sum + i.price * i.qty, 0),
+
+  hydrate: async () => {
+    try {
+      const saved = await AsyncStorage.getItem('cart');
+      if (saved) set({ items: JSON.parse(saved) });
+    } catch {}
+  },
 }));

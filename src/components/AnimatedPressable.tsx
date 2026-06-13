@@ -7,59 +7,79 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 
-interface AnimatedPressableProps {
+interface Props {
   children: React.ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
-  scaleDown?: number;
+  scale?: number;
+  haptic?: boolean;
   disabled?: boolean;
-  hitSlop?: number;
 }
 
-export const AnimatedPressable = ({
+const AnimatedPressable: React.FC<Props> = ({
   children,
   onPress,
   onLongPress,
   style,
-  scaleDown = 0.96,
+  scale = 0.96,
+  haptic = true,
   disabled = false,
-  hitSlop = 4,
-}: AnimatedPressableProps) => {
-  const scale = useSharedValue(1);
+}) => {
+  const pressed = useSharedValue(false);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const triggerHaptic = () => {
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handlePress = () => {
+    if (haptic) triggerHaptic();
+    onPress?.();
+  };
+
+  const handleLongPress = () => {
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onLongPress?.();
+  };
 
   const tap = Gesture.Tap()
     .enabled(!disabled)
-    .hitSlop(hitSlop)
     .onBegin(() => {
-      scale.value = withSpring(scaleDown, { damping: 15, stiffness: 300 });
+      pressed.value = true;
     })
-    .onFinalize(() => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 200 });
-    })
-    .onEnd(() => {
-      if (onPress) runOnJS(onPress)();
+    .onFinalize((_, success) => {
+      pressed.value = false;
+      if (success && onPress) runOnJS(handlePress)();
     });
 
   const longPress = Gesture.LongPress()
     .enabled(!disabled && !!onLongPress)
     .minDuration(500)
     .onStart(() => {
-      if (onLongPress) runOnJS(onLongPress)();
+      if (onLongPress) runOnJS(handleLongPress)();
     });
 
   const composed = Gesture.Simultaneous(tap, longPress);
 
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: withSpring(pressed.value ? scale : 1, {
+          damping: 15,
+          stiffness: 300,
+        }),
+      },
+    ],
+    opacity: disabled ? 0.5 : 1,
+  }));
+
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View style={[style, animatedStyle]}>
-        {children}
-      </Animated.View>
+      <Animated.View style={[style, animStyle]}>{children}</Animated.View>
     </GestureDetector>
   );
 };
+
+export default AnimatedPressable;

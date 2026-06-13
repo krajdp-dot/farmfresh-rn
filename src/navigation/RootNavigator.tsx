@@ -1,22 +1,18 @@
-﻿import React, { useState, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { AuthNavigator } from './AuthNavigator';
-import { MainNavigator } from './MainNavigator';
+import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { SplashScreen } from '../screens/SplashScreen';
+import AuthNavigator from './AuthNavigator';
+import MainNavigator from './MainNavigator';
+import { useTheme } from '../theme/ThemeContext';
 
-export const RootNavigator = () => {
-  const { isAuthenticated } = useAuth();
-  const [showSplash, setShowSplash] = useState(true);
+const RootNavigator: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const { colors } = useTheme();
 
-  const handleSplashFinish = useCallback(() => {
-    setShowSplash(false);
-  }, []);
-
-  if (showSplash) {
+  if (isLoading) {
     return (
-      <View style={styles.root}>
-        <SplashScreen onFinish={handleSplashFinish} />
+      <View style={[styles.loading, { backgroundColor: colors.primary }]}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     );
   }
@@ -25,5 +21,11 @@ export const RootNavigator = () => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+
+export default RootNavigator;

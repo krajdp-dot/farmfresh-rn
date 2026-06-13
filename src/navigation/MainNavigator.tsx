@@ -1,98 +1,147 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomeScreen }             from '../screens/HomeScreen';
-import { SearchScreen }           from '../screens/SearchScreen';
-import { CategoriesScreen }       from '../screens/CategoriesScreen';
-import { CategoryProductsScreen } from '../screens/CategoryProductsScreen';
-import { ProductDetailScreen }    from '../screens/ProductDetailScreen';
-import { CartScreen }             from '../screens/CartScreen';
-import { OrdersScreen }           from '../screens/OrdersScreen';
-import { OrderDetailScreen }      from '../screens/OrderDetailScreen';
-import { ProfileScreen }          from '../screens/ProfileScreen';
-import GoldScreen                 from '../screens/GoldScreen';
-import { BottomNav, BottomTabName } from '../components/BottomNav';
+import BottomNav from '../components/BottomNav';
+import HomeScreen from '../screens/HomeScreen';
+import SearchScreen from '../screens/SearchScreen';
+import CategoriesScreen from '../screens/CategoriesScreen';
+import CategoryProductsScreen from '../screens/CategoryProductsScreen';
+import CartScreen from '../screens/CartScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
+import OrdersScreen from '../screens/OrdersScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
+import ProductDetailScreen from '../screens/ProductDetailScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import { useTheme } from '../theme/ThemeContext';
 
-export type MainStackParamList = {
-  Home: undefined;
-  Search: undefined;
-  Categories: undefined;
-  CategoryProducts: { category: string };
-  ProductDetail: { product: any };
-  Cart: undefined;
-  Orders: undefined;
-  OrderDetail: { order: any };
-  Profile: undefined;
-  Gold: undefined;
-};
+type Tab = 'Home' | 'Search' | 'Cart' | 'Profile';
 
-const Stack = createNativeStackNavigator<MainStackParamList>();
+type Screen =
+  | { name: 'Home' }
+  | { name: 'Search' }
+  | { name: 'Categories' }
+  | { name: 'CategoryProducts'; category: any }
+  | { name: 'ProductDetail'; product: any }
+  | { name: 'Cart' }
+  | { name: 'Checkout' }
+  | { name: 'Orders' }
+  | { name: 'OrderDetail'; order: any }
+  | { name: 'Profile' };
 
-const HIDE_NAV = ['ProductDetail', 'OrderDetail', 'CategoryProducts', 'Gold'];
+const MainNavigator: React.FC = () => {
+  const { colors } = useTheme();
+  const [activeTab, setActiveTab] = useState<Tab>('Home');
+  const [stack, setStack] = useState<Screen[]>([{ name: 'Home' }]);
 
-export const MainNavigator = () => {
-  const [activeTab, setActiveTab] = useState<BottomTabName>('Home');
-  const [currentRoute, setCurrentRoute] = useState('Home');
-  const [cartCount] = useState(3);
-  const navRef = React.useRef<any>(null);
+  const current = stack[stack.length - 1];
+  const push = (screen: Screen) => setStack(s => [...s, screen]);
+  const pop  = () => setStack(s => s.length > 1 ? s.slice(0, -1) : s);
 
-  const handleTabPress = useCallback((tab: BottomTabName) => {
+  const goTab = (tab: Tab) => {
     setActiveTab(tab);
-    navRef.current?.navigate(tab);
-  }, []);
+    const map: Record<Tab, Screen> = {
+      Home:    { name: 'Home' },
+      Search:  { name: 'Search' },
+      Cart:    { name: 'Cart' },
+      Profile: { name: 'Profile' },
+    };
+    setStack([map[tab]]);
+  };
 
-  const handleOrdersPress = useCallback(() => {
-    navRef.current?.navigate('Orders');
-  }, []);
+  const renderScreen = () => {
+    switch (current.name) {
+      case 'Home':
+        return (
+          <HomeScreen
+            onSearchPress={() => push({ name: 'Search' })}
+            onCategoryPress={cat => push({ name: 'CategoryProducts', category: cat })}
+            onProductPress={prod => push({ name: 'ProductDetail', product: prod })}
+            onCartPress={() => goTab('Cart')}
+            onGoldPress={() => {}}
+          />
+        );
+      case 'Search':
+        return (
+          <SearchScreen
+            onProductPress={prod => push({ name: 'ProductDetail', product: prod })}
+            onBack={pop}
+          />
+        );
+      case 'Categories':
+        return (
+          <CategoriesScreen
+            onCategoryPress={cat => push({ name: 'CategoryProducts', category: cat })}
+          />
+        );
+      case 'CategoryProducts':
+        return (
+          <CategoryProductsScreen
+            category={current.category}
+            onProductPress={prod => push({ name: 'ProductDetail', product: prod })}
+            onBack={pop}
+          />
+        );
+      case 'ProductDetail':
+        return (
+          <ProductDetailScreen
+            product={current.product}
+            onBack={pop}
+            onCartPress={() => goTab('Cart')}
+          />
+        );
+      case 'Cart':
+        return (
+          <CartScreen
+            onCheckout={() => push({ name: 'Checkout' })}
+            onShopNow={() => goTab('Home')}
+          />
+        );
+      case 'Checkout':
+        return (
+          <CheckoutScreen
+            onOrderPlaced={(orderId) => {
+              goTab('Profile');
+              setTimeout(() => push({ name: 'Orders' }), 100);
+            }}
+            onBack={pop}
+          />
+        );
+      case 'Orders':
+        return (
+          <OrdersScreen
+            onOrderPress={order => push({ name: 'OrderDetail', order })}
+          />
+        );
+      case 'OrderDetail':
+        return <OrderDetailScreen order={current.order} onBack={pop} />;
+      case 'Profile':
+        return (
+          <ProfileScreen
+            onOrdersPress={() => push({ name: 'Orders' })}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
-  const showNav = !HIDE_NAV.includes(currentRoute);
+  const tabForScreen: Record<string, Tab> = {
+    Home: 'Home', Search: 'Search', Categories: 'Home',
+    CategoryProducts: 'Home', ProductDetail: 'Home',
+    Cart: 'Cart', Checkout: 'Cart',
+    Orders: 'Profile', OrderDetail: 'Profile', Profile: 'Profile',
+  };
 
   return (
-    <View style={styles.root}>
-      <Stack.Navigator
-        ref={navRef}
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-          contentStyle: { backgroundColor: 'transparent' },
-        }}
-        screenListeners={{
-          state: (e) => {
-            const routes = (e.data as any)?.state?.routes;
-            if (routes?.length) {
-              const name = routes[routes.length - 1].name;
-              setCurrentRoute(name);
-              if (['Home','Search','Cart'].includes(name)) {
-                setActiveTab(name as BottomTabName);
-              }
-            }
-          },
-        }}
-      >
-        <Stack.Screen name="Home"             component={HomeScreen}             />
-        <Stack.Screen name="Search"           component={SearchScreen}           options={{ animation: 'fade' }} />
-        <Stack.Screen name="Cart"             component={CartScreen}             />
-        <Stack.Screen name="Categories"       component={CategoriesScreen}       />
-        <Stack.Screen name="CategoryProducts" component={CategoryProductsScreen} />
-        <Stack.Screen name="ProductDetail"    component={ProductDetailScreen}    />
-        <Stack.Screen name="Orders"           component={OrdersScreen}           />
-        <Stack.Screen name="OrderDetail"      component={OrderDetailScreen}      />
-        <Stack.Screen name="Profile"          component={ProfileScreen}          />
-        <Stack.Screen name="Gold"             component={GoldScreen}             />
-      </Stack.Navigator>
-
-      {showNav && (
-        <BottomNav
-          activeTab={activeTab}
-          onTabPress={handleTabPress}
-          onOrdersPress={handleOrdersPress}
-          cartCount={cartCount}
-        />
-      )}
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={styles.screen}>{renderScreen()}</View>
+      <BottomNav activeTab={tabForScreen[current.name] ?? activeTab} onTabPress={goTab} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  container: { flex: 1 },
+  screen: { flex: 1 },
 });
+
+export default MainNavigator;

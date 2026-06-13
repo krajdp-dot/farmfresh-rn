@@ -1,408 +1,239 @@
-// ============================================================
-// FARM FRESH RN v4 — ProductCard
-// Neomorph on light bg · Weight pills · Mandi price · +/- qty
-// ============================================================
-
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  withRepeat,
-  Easing,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Colors, Neomorph, Shadow, Font, Spacing, Radius,
-} from '../theme';
-import { AnimatedPressable } from './AnimatedPressable';
-import {
-  IconPlus, IconMinus, IconStar, IconLeaf, IconTomato,
-  IconCarrot, IconMango, IconOnion, IconPotato, IconBanana,
-  getProduceIcon,
-} from './icons';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  mandiPrice: number;
-  unit: string;
-  tag: string | null;
-  category: string;
-  image: string | null;
-  rating: number;
-  inStock: boolean;
-}
+import React from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../theme/LangContext';
+import { useCartStore } from '../stores/cartStore';
+import AnimatedPressable from './AnimatedPressable';
+import { spacing, radius, fontSize, fontFamily, SCREEN_WIDTH } from '../theme/tokens';
 
 interface ProductCardProps {
-  product: Product;
-  width: number;
-  onPress: () => void;
-  index?: number;
+  id: string;
+  name: string;
+  nameHi: string;
+  price: number;
+  mandiPrice?: number;
+  unit: string;
+  image: string;
+  onPress?: () => void;
 }
 
-export const ProductCard = ({ product, width, onPress, index = 0 }: ProductCardProps) => {
-  const [qty, setQty] = useState(0);
+const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - spacing.md) / 2;
 
-  // ── Entry animation ──────────────────────────────────────
-  const entryOpacity = useSharedValue(0);
-  const entryTranslateY = useSharedValue(20);
+const ProductCard: React.FC<ProductCardProps> = ({
+  id,
+  name,
+  nameHi,
+  price,
+  mandiPrice,
+  unit,
+  image,
+  onPress,
+}) => {
+  const { colors } = useTheme();
+  const { isHindi, t } = useLang();
+  const qty = useCartStore((s) => s.getQty(id));
+  const addItem = useCartStore((s) => s.addItem);
+  const updateQty = useCartStore((s) => s.updateQty);
 
-  React.useEffect(() => {
-    entryOpacity.value = withDelay(
-      index * 60,
-      withTiming(1, { duration: 350, easing: Easing.out(Easing.ease) })
-    );
-    entryTranslateY.value = withDelay(
-      index * 60,
-      withSpring(0, { damping: 14, stiffness: 100 })
-    );
-  }, []);
-
-  // ── Qty button scale ─────────────────────────────────────
-  const plusScale = useSharedValue(1);
-  const minusScale = useSharedValue(1);
-  const qtyBadgeScale = useSharedValue(1);
-
-  const handleAdd = useCallback(() => {
-    setQty(q => q + 1);
-    plusScale.value = withSpring(1.2, { damping: 10 }, () => {
-      plusScale.value = withSpring(1, { damping: 12 });
-    });
-    qtyBadgeScale.value = withSpring(1.15, { damping: 10 }, () => {
-      qtyBadgeScale.value = withSpring(1, { damping: 12 });
-    });
-  }, []);
-
-  const handleRemove = useCallback(() => {
-    setQty(q => Math.max(0, q - 1));
-    minusScale.value = withSpring(1.2, { damping: 10 }, () => {
-      minusScale.value = withSpring(1, { damping: 12 });
-    });
-  }, []);
-
-  const entryStyle = useAnimatedStyle(() => ({
-    opacity: entryOpacity.value,
-    transform: [{ translateY: entryTranslateY.value }],
-  }));
-
-  const plusStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: plusScale.value }],
-  }));
-
-  const minusStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: minusScale.value }],
-  }));
-
-  const qtyBadgeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: qtyBadgeScale.value }],
-  }));
-
-  const savings = product.price - product.mandiPrice;
-  const savingsPct = Math.round((savings / product.price) * 100);
-  const ProduceIcon = getProduceIcon(product.name);
+  const displayName = isHindi ? nameHi : name;
+  const savings = mandiPrice ? mandiPrice - price : 0;
 
   return (
-    <Animated.View style={[{ width }, entryStyle]}>
-      <AnimatedPressable onPress={onPress} scaleDown={0.97}>
-        <View style={[styles.card, { width }]}>
-
-          {/* ── Image area ──────────────────────────── */}
-          <View style={styles.imageWrap}>
-            {/* Placeholder with produce SVG */}
-            <LinearGradient
-              colors={['#E8EDE6', '#D4DDD1']}
-              style={styles.imagePlaceholder}
-            >
-              <ProduceIcon size={52} />
-            </LinearGradient>
-
-            {/* Out of stock overlay */}
-            {!product.inStock && (
-              <View style={styles.outOfStockOverlay}>
-                <Animated.Text style={styles.outOfStockText}>Out of stock</Animated.Text>
-              </View>
-            )}
-
-            {/* Tag badge */}
-            {product.tag && (
-              <View style={styles.tagBadge}>
-                <Animated.Text style={styles.tagText}>{product.tag}</Animated.Text>
-              </View>
-            )}
-
-            {/* Mandi savings badge */}
-            {savingsPct > 0 && (
-              <View style={styles.savingsBadge}>
-                <Animated.Text style={styles.savingsText}>{savingsPct}% off MRP</Animated.Text>
-              </View>
-            )}
-          </View>
-
-          {/* ── Info ────────────────────────────────── */}
-          <View style={styles.info}>
-            <Animated.Text style={styles.name} numberOfLines={2}>
-              {product.name}
-            </Animated.Text>
-
-            {/* Unit pill */}
-            <View style={styles.unitPill}>
-              <Animated.Text style={styles.unitText}>{product.unit}</Animated.Text>
+    <AnimatedPressable onPress={onPress} style={[styles.card, { width: CARD_WIDTH }]}>
+      <View style={[styles.inner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Image */}
+        <View style={[styles.imageWrap, { backgroundColor: colors.bgSecondary }]}>
+          <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
+          {savings > 0 && (
+            <View style={[styles.savingsBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.savingsText}>
+                {t('youSave')} ₹{savings}
+              </Text>
             </View>
+          )}
+        </View>
 
-            {/* Price row */}
-            <View style={styles.priceRow}>
-              <Animated.Text style={styles.price}>₹{product.price}</Animated.Text>
-              <Animated.Text style={styles.mandiPrice}>
-                Mandi ₹{product.mandiPrice}
-              </Animated.Text>
-            </View>
+        {/* Info */}
+        <View style={styles.info}>
+          <Text
+            style={[
+              styles.name,
+              {
+                color: colors.text,
+                fontFamily: isHindi ? 'Baloo2-SemiBold' : 'Outfit-SemiBold',
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {displayName}
+          </Text>
 
-            {/* Rating */}
-            <View style={styles.ratingRow}>
-              <IconStar size={11} color={Colors.accentYellow} />
-              <Animated.Text style={styles.ratingText}>{product.rating}</Animated.Text>
-            </View>
-          </View>
+          <Text
+            style={[
+              styles.unit,
+              { color: colors.textMuted, fontFamily: 'Outfit-Regular' },
+            ]}
+          >
+            {unit}
+          </Text>
 
-          {/* ── Qty control ─────────────────────────── */}
-          {product.inStock && (
-            <View style={styles.qtyRow}>
-              {qty === 0 ? (
-                <AnimatedPressable onPress={handleAdd} style={styles.addBtnWrap} scaleDown={0.93}>
-                  <LinearGradient
-                    colors={[Colors.brandGreenLight, Colors.brandGreen]}
-                    style={styles.addBtn}
-                  >
-                    <IconPlus size={16} color={Colors.white} strokeWidth={2.5} />
-                  </LinearGradient>
-                </AnimatedPressable>
-              ) : (
-                <View style={styles.qtyControl}>
-                  <AnimatedPressable onPress={handleRemove} scaleDown={0.88}>
-                    <Animated.View style={[styles.qtyBtn, minusStyle]}>
-                      <IconMinus size={14} color={Colors.brandGreen} strokeWidth={2.5} />
-                    </Animated.View>
-                  </AnimatedPressable>
-
-                  <Animated.View style={[styles.qtyBadge, qtyBadgeStyle]}>
-                    <Animated.Text style={styles.qtyText}>{qty}</Animated.Text>
-                  </Animated.View>
-
-                  <AnimatedPressable onPress={handleAdd} scaleDown={0.88}>
-                    <Animated.View style={[styles.qtyBtn, styles.qtyBtnAdd, plusStyle]}>
-                      <IconPlus size={14} color={Colors.white} strokeWidth={2.5} />
-                    </Animated.View>
-                  </AnimatedPressable>
-                </View>
-              )}
+          {/* Mandi price */}
+          {mandiPrice && (
+            <View style={styles.mandiRow}>
+              <Text style={[styles.mandiLabel, { color: colors.mandiText, fontFamily: 'Outfit-Medium' }]}>
+                {t('mandiPrice')}
+              </Text>
+              <Text style={[styles.mandiVal, { color: colors.textMuted, fontFamily: 'Outfit-Regular' }]}>
+                ₹{mandiPrice}
+              </Text>
             </View>
           )}
 
+          {/* Price + Add */}
+          <View style={styles.priceRow}>
+            <Text
+              style={[
+                styles.price,
+                { color: colors.text, fontFamily: 'Outfit-Bold' },
+              ]}
+            >
+              ₹{price}
+            </Text>
+
+            {qty === 0 ? (
+              <AnimatedPressable
+                onPress={() =>
+                  addItem({ id, name, nameHi, price, unit, image, mandiPrice })
+                }
+                scale={0.92}
+              >
+                <View style={[styles.addBtn, { borderColor: colors.primary }]}>
+                  <Text style={[styles.addBtnText, { color: colors.primary, fontFamily: 'Outfit-Bold' }]}>
+                    {t('addToCart')}
+                  </Text>
+                </View>
+              </AnimatedPressable>
+            ) : (
+              <View style={[styles.qtyControl, { borderColor: colors.primary }]}>
+                <AnimatedPressable
+                  onPress={() => updateQty(id, qty - 1)}
+                  scale={0.88}
+                >
+                  <Text style={[styles.qtyBtn, { color: colors.primary, fontFamily: 'Outfit-Bold' }]}>−</Text>
+                </AnimatedPressable>
+                <Text style={[styles.qtyVal, { color: colors.primary, fontFamily: 'Outfit-Bold' }]}>
+                  {qty}
+                </Text>
+                <AnimatedPressable
+                  onPress={() => updateQty(id, qty + 1)}
+                  scale={0.88}
+                >
+                  <Text style={[styles.qtyBtn, { color: colors.primary, fontFamily: 'Outfit-Bold' }]}>+</Text>
+                </AnimatedPressable>
+              </View>
+            )}
+          </View>
         </View>
-      </AnimatedPressable>
-    </Animated.View>
-  );
-};
-
-// ── SkeletonCard (same file for convenience) ──────────────
-export const SkeletonCard = ({ width }: { width: number }) => {
-  const shimmer = useSharedValue(0);
-
-  React.useEffect(() => {
-    shimmer.value = withRepeat(
-      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-  }, []);
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: 0.4 + shimmer.value * 0.4,
-  }));
-
-  return (
-    <Animated.View style={[styles.card, { width }, shimmerStyle]}>
-      <View style={[styles.imagePlaceholder, { backgroundColor: Colors.neomorphShadowLight }]} />
-      <View style={styles.info}>
-        <View style={styles.skeletonLine} />
-        <View style={[styles.skeletonLine, { width: '60%' }]} />
-        <View style={[styles.skeletonLine, { width: '40%' }]} />
       </View>
-    </Animated.View>
+    </AnimatedPressable>
   );
 };
 
-
-// ── Styles ────────────────────────────────────────────────
 const styles = StyleSheet.create({
   card: {
-    ...Neomorph.card,
-    overflow: 'hidden',
-    backgroundColor: Colors.bgSecondary,
+    marginBottom: spacing.md,
   },
-
-  // ── Image ────────────────────────────────────────────────
+  inner: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
   imageWrap: {
     width: '100%',
     height: 130,
     position: 'relative',
   },
-  imagePlaceholder: {
+  image: {
     width: '100%',
     height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outOfStockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outOfStockText: {
-    fontFamily: Font.jakartaSemiBold,
-    fontSize: 12,
-    color: Colors.white,
-  },
-  tagBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: Colors.accentOrange,
-    borderRadius: Radius.xs,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  tagText: {
-    fontFamily: Font.jakartaSemiBold,
-    fontSize: 10,
-    color: Colors.white,
   },
   savingsBadge: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(34,197,94,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
-    borderRadius: Radius.xs,
+    top: 8,
+    left: 8,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   savingsText: {
-    fontFamily: Font.jakartaSemiBold,
-    fontSize: 9,
-    color: Colors.success,
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Outfit-SemiBold',
   },
-
-  // ── Info ─────────────────────────────────────────────────
   info: {
-    padding: Spacing.sm,
-    gap: 4,
+    padding: spacing.sm + 2,
+    gap: 3,
   },
   name: {
-    fontFamily: Font.outfitMedium,
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 20,
+    fontSize: fontSize.sm,
+    lineHeight: 18,
   },
-  unitPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(45,138,78,0.10)',
-    borderRadius: Radius.xs,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+  unit: {
+    fontSize: 11,
   },
-  unitText: {
-    fontFamily: Font.jakartaMedium,
+  mandiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  mandiLabel: {
     fontSize: 10,
-    color: Colors.brandGreen,
+  },
+  mandiVal: {
+    fontSize: 10,
+    textDecorationLine: 'line-through',
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: Spacing.xs,
-    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
   price: {
-    fontFamily: Font.outfitBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  mandiPrice: {
-    fontFamily: Font.jakartaRegular,
-    fontSize: 10,
-    color: Colors.textMuted,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  ratingText: {
-    fontFamily: Font.jakartaMedium,
-    fontSize: 11,
-    color: Colors.textSecondary,
-  },
-
-  // ── Qty ──────────────────────────────────────────────────
-  qtyRow: {
-    paddingHorizontal: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    alignItems: 'flex-end',
-  },
-  addBtnWrap: {
-    borderRadius: Radius.sm,
-    overflow: 'hidden',
+    fontSize: fontSize.md,
   },
   addBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  addBtnText: {
+    fontSize: 12,
   },
   qtyControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
   },
   qtyBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.xs,
-    backgroundColor: 'rgba(45,138,78,0.12)',
-    borderWidth: 1,
-    borderColor: Colors.borderMedium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyBtnAdd: {
-    backgroundColor: Colors.brandGreen,
-    borderColor: Colors.brandGreen,
-  },
-  qtyBadge: {
-    minWidth: 28,
-    alignItems: 'center',
-  },
-  qtyText: {
-    fontFamily: Font.outfitBold,
     fontSize: 16,
-    color: Colors.textPrimary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-
-  // ── Skeleton ─────────────────────────────────────────────
-  skeletonLine: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#D4DDD1',
-    marginBottom: 6,
+  qtyVal: {
+    fontSize: 13,
+    minWidth: 20,
+    textAlign: 'center',
   },
 });
+
+export default ProductCard;

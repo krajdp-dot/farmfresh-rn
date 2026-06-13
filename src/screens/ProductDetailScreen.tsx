@@ -1,462 +1,482 @@
-// ============================================================
-// FARM FRESH RN v4 — ProductDetailScreen
-// Hero image · Mandi price comparison · Qty · Add to cart
-// ============================================================
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, Dimensions, StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  StatusBar,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
-import Animated, {
-  useSharedValue, useAnimatedStyle, useAnimatedScrollHandler,
-  withSpring, withTiming, withSequence, interpolate,
-  Extrapolation, Easing,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Glass, Font, Spacing, Radius, Neomorph } from '../theme';
-import { AnimatedPressable } from '../components/AnimatedPressable';
-import {
-  IconChevronLeft, IconStar, IconLeaf, IconTruck,
-  IconPlus, IconMinus, IconCart, IconCheck,
-} from '../components/icons';
-import { getProduceIcon } from '../components/icons';
+import { useTheme } from '../theme/ThemeContext';
+import { useLang } from '../theme/LangContext';
+import { useCartStore } from '../stores/cartStore';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { FarmerStory, NotifyButton, PriceDropAlert, FreshnessBadge, WeightBadge, MandiSavingsBadge } from '../components/features';
+import { spacing, radius, SCREEN_WIDTH } from '../theme/tokens';
 
-const { width: W, height: H } = Dimensions.get('window');
-const HERO_H = H * 0.40;
+interface Product {
+  id: string;
+  name: string;
+  nameHi: string;
+  price: number;
+  mandiPrice?: number;
+  unit: string;
+  image: string;
+}
 
-const WEIGHT_OPTIONS = ['250g', '500g', '1kg', '2kg'];
+const RELATED = [
+  { id: 'r1', name: 'Onions', nameHi: 'प्याज़', price: 28, mandiPrice: 20, unit: '1kg', image: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=400' },
+  { id: 'r2', name: 'Potatoes', nameHi: 'आलू', price: 22, mandiPrice: 15, unit: '1kg', image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400' },
+  { id: 'r3', name: 'Spinach', nameHi: 'पालक', price: 18, mandiPrice: 12, unit: '500g', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400' },
+];
 
-// ── Mandi price bar ───────────────────────────────────────
-const MandiPriceBar = ({ ourPrice, mandiPrice }: { ourPrice: number; mandiPrice: number }) => {
-  const savings = ourPrice - mandiPrice;
-  const pct = Math.round((savings / ourPrice) * 100);
-  const barWidth = useSharedValue(0);
+interface Props {
+  product: Product;
+  onBack: () => void;
+  onCartPress: () => void;
+}
 
-  useEffect(() => {
-    barWidth.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.exp) });
-  }, []);
-
-  const barStyle = useAnimatedStyle(() => ({
-    width: `${barWidth.value * pct}%` as any,
-  }));
-
-  return (
-    <View style={styles.mandiBar}>
-      <View style={styles.mandiBarHeader}>
-        <Animated.Text style={styles.mandiBarLabel}>Mandi to your door savings</Animated.Text>
-        <Animated.Text style={styles.mandiBarPct}>{pct}% cheaper</Animated.Text>
-      </View>
-      <View style={styles.mandiBarTrack}>
-        <Animated.View style={[styles.mandiBarFill, barStyle]} />
-      </View>
-      <View style={styles.mandiPriceRow}>
-        <View style={styles.mandiPriceItem}>
-          <Animated.Text style={styles.mandiPriceLabel}>Mandi rate</Animated.Text>
-          <Animated.Text style={styles.mandiPriceValue}>₹{mandiPrice}/kg</Animated.Text>
-        </View>
-        <View style={styles.mandiPriceDivider} />
-        <View style={styles.mandiPriceItem}>
-          <Animated.Text style={styles.mandiPriceLabel}>Our price</Animated.Text>
-          <Animated.Text style={[styles.mandiPriceValue, { color: Colors.brandGreen }]}>
-            ₹{ourPrice}
-          </Animated.Text>
-        </View>
-        <View style={styles.mandiPriceDivider} />
-        <View style={styles.mandiPriceItem}>
-          <Animated.Text style={styles.mandiPriceLabel}>You save</Animated.Text>
-          <Animated.Text style={[styles.mandiPriceValue, { color: Colors.success }]}>
-            ₹{savings}
-          </Animated.Text>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-// ── Main Screen ───────────────────────────────────────────
-export const ProductDetailScreen = ({ route, navigation }: { route: any; navigation: any }) => {
-  const { product } = route.params;
+const ProductDetailScreen: React.FC<Props> = ({ product, onBack, onCartPress }) => {
+  const { colors } = useTheme();
+  const { t, isHindi } = useLang();
   const insets = useSafeAreaInsets();
-  const scrollY = useSharedValue(0);
+  const qty = useCartStore((s) => s.getQty(product.id));
+  const addItem = useCartStore((s) => s.addItem);
+  const updateQty = useCartStore((s) => s.updateQty);
+  const [selectedUnit, setSelectedUnit] = useState(0);
 
-  const [qty, setQty] = useState(1);
-  const [selectedWeight, setSelectedWeight] = useState(WEIGHT_OPTIONS[1]);
-  const [addedToCart, setAddedToCart] = useState(false);
+  const boldFont = isHindi ? 'Baloo2-Bold' : 'Outfit-Bold';
+  const bodyFont = isHindi ? 'Baloo2-Regular' : 'Outfit-Regular';
+  const semiBoldFont = isHindi ? 'Baloo2-SemiBold' : 'Outfit-SemiBold';
+  const medFont = isHindi ? 'Baloo2-Medium' : 'Outfit-Medium';
+  const exBoldFont = isHindi ? 'Baloo2-Bold' : 'Outfit-ExtraBold';
 
-  const qtyScale = useSharedValue(1);
-  const ctaScale = useSharedValue(1);
-  const contentOpacity = useSharedValue(0);
-  const contentY = useSharedValue(30);
+  const savings = product.mandiPrice ? product.mandiPrice - product.price : 0;
+  const savingPct = product.mandiPrice ? Math.round((savings / product.mandiPrice) * 100) : 0;
 
-  useEffect(() => {
-    contentOpacity.value = withTiming(1, { duration: 400 });
-    contentY.value = withSpring(0, { damping: 14, stiffness: 100 });
-  }, []);
+  const UNIT_OPTIONS = [
+    { label: '250g', multiplier: 0.25 },
+    { label: '500g', multiplier: 0.5 },
+    { label: '1 kg', multiplier: 1 },
+    { label: '2 kg', multiplier: 2 },
+  ];
 
-  const scrollHandler = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
-
-  const heroStyle = useAnimatedStyle(() => ({
-    transform: [{
-      translateY: interpolate(scrollY.value, [0, HERO_H], [0, -HERO_H * 0.3], Extrapolation.CLAMP),
-    }],
-  }));
-
-  const headerOpacity = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [HERO_H * 0.5, HERO_H * 0.8], [0, 1], Extrapolation.CLAMP),
-    backgroundColor: `rgba(10,26,15,${interpolate(scrollY.value, [HERO_H * 0.4, HERO_H * 0.8], [0, 1], Extrapolation.CLAMP)})`,
-  }));
-
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
-    transform: [{ translateY: contentY.value }],
-  }));
-
-  const handleAdd = () => {
-    setQty(q => q + 1);
-    qtyScale.value = withSequence(
-      withSpring(1.2, { damping: 10 }),
-      withSpring(1, { damping: 12 })
-    );
-  };
-
-  const handleRemove = () => {
-    setQty(q => Math.max(1, q - 1));
-  };
-
-  const handleAddToCart = () => {
-    setAddedToCart(true);
-    ctaScale.value = withSequence(
-      withSpring(0.95, { damping: 10 }),
-      withSpring(1.02, { damping: 10 }),
-      withSpring(1, { damping: 14 })
-    );
-    setTimeout(() => setAddedToCart(false), 2000);
-  };
-
-  const qtyStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: qtyScale.value }],
-  }));
-
-  const ctaStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: ctaScale.value }],
-  }));
-
-  const ProduceIcon = getProduceIcon(product.name);
+  const effectivePrice = Math.round(product.price * UNIT_OPTIONS[selectedUnit].multiplier);
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Floating back + cart buttons */}
-      <Animated.View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }, headerOpacity]}>
-        <AnimatedPressable onPress={() => navigation.goBack()} scaleDown={0.88}>
-          <View style={styles.floatBtn}>
-            <IconChevronLeft size={20} color={Colors.textOnDark} strokeWidth={2.2} />
+      {/* Floating back button */}
+      <View style={[styles.floatingBtns, { top: insets.top + 10 }]}>
+        <AnimatedPressable onPress={onBack} scale={0.9}>
+          <View style={styles.floatingBtn}>
+            <Text style={styles.floatingBtnText}>←</Text>
           </View>
         </AnimatedPressable>
-        <Animated.Text style={styles.floatTitle} numberOfLines={1}>{product.name}</Animated.Text>
-        <AnimatedPressable onPress={() => navigation.navigate('Cart')} scaleDown={0.88}>
-          <View style={styles.floatBtn}>
-            <IconCart size={20} color={Colors.textOnDark} />
+        <AnimatedPressable onPress={onCartPress} scale={0.9}>
+          <View style={styles.floatingBtn}>
+            <Text style={styles.floatingBtnText}>🛒</Text>
           </View>
         </AnimatedPressable>
-      </Animated.View>
+      </View>
 
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} bounces>
         {/* Hero */}
-        <Animated.View style={[styles.hero, heroStyle]}>
-          <LinearGradient colors={['#0F2318', '#1A3A22']} style={StyleSheet.absoluteFill} />
-          <View style={styles.heroIcon}>
-            <ProduceIcon size={130} />
-          </View>
-
-          {/* Back btn on hero */}
-          <AnimatedPressable
-            onPress={() => navigation.goBack()}
-            style={[styles.heroBack, { top: insets.top + 8 }]}
-            scaleDown={0.88}
-          >
-            <View style={styles.floatBtn}>
-              <IconChevronLeft size={20} color={Colors.textOnDark} strokeWidth={2.2} />
-            </View>
-          </AnimatedPressable>
-
-          {/* Tag */}
-          {product.tag && (
-            <View style={styles.heroTag}>
-              <Animated.Text style={styles.heroTagText}>{product.tag}</Animated.Text>
+        <View style={styles.heroContainer}>
+          <Image source={{ uri: product.image }} style={styles.heroImage} resizeMode="cover" />
+          <View style={styles.heroGradient} />
+          {savingPct > 0 && (
+            <View style={[styles.heroBadge, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.heroBadgeText, { fontFamily: boldFont }]}>{savingPct}% OFF</Text>
             </View>
           )}
+          <FreshnessBadge freshness="morning" isHindi={isHindi} />
+          <WeightBadge />
+          {product.mandiPrice && <MandiSavingsBadge price={product.price} mandiPrice={product.mandiPrice} isHindi={isHindi} />}
+          <View style={styles.heroFreshnessRow}>
+            {[isHindi ? '🌿 ताज़ा' : '🌿 Fresh', isHindi ? '✅ चेक किया' : '✅ Checked', isHindi ? '⚡ आज का' : '⚡ Today'].map((tag, i) => (
+              <View key={i} style={styles.heroTag}>
+                <Text style={styles.heroTagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
-          {/* Gradient fade to content */}
-          <LinearGradient
-            colors={['transparent', Colors.bgSecondary]}
-            style={styles.heroFade}
-          />
-        </Animated.View>
+        <View style={styles.body}>
+          {/* Name + Price */}
+          <View style={styles.nameSection}>
+            <View style={styles.nameRow}>
+              <View style={styles.nameBlock}>
+                <Text style={[styles.productName, { color: colors.text, fontFamily: boldFont }]}>
+                  {isHindi ? product.nameHi : product.name}
+                </Text>
+                <Text style={[styles.productNameAlt, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                  {isHindi ? product.name : product.nameHi}
+                </Text>
+              </View>
+              <View style={styles.priceBlock}>
+                <Text style={[styles.mainPrice, { color: colors.text, fontFamily: exBoldFont }]}>
+                  ₹{effectivePrice}
+                </Text>
+                {product.mandiPrice && (
+                  <Text style={[styles.mrpPrice, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                    MRP ₹{Math.round(product.mandiPrice * UNIT_OPTIONS[selectedUnit].multiplier)}
+                  </Text>
+                )}
+              </View>
+            </View>
 
-        {/* Content card */}
-        <Animated.View style={[styles.content, contentStyle]}>
-
-          {/* Name + Rating */}
-          <View style={styles.nameRow}>
-            <Animated.Text style={styles.name}>{product.name}</Animated.Text>
-            <View style={styles.ratingBadge}>
-              <IconStar size={13} color={Colors.accentYellow} />
-              <Animated.Text style={styles.ratingText}>{product.rating}</Animated.Text>
+            {/* Rating + Info pills */}
+            <View style={styles.infoPills}>
+              <View style={[styles.infoPill, { backgroundColor: colors.goldLight }]}>
+                <Text style={styles.infoPillIcon}>⭐</Text>
+                <Text style={[styles.infoPillText, { color: colors.gold, fontFamily: medFont }]}>4.8</Text>
+              </View>
+              <View style={[styles.infoPill, { backgroundColor: colors.primaryLight }]}>
+                <Text style={styles.infoPillIcon}>🕐</Text>
+                <Text style={[styles.infoPillText, { color: colors.primary, fontFamily: medFont }]}>
+                  {isHindi ? '2 घंटे' : '2hr delivery'}
+                </Text>
+              </View>
+              <View style={[styles.infoPill, { backgroundColor: colors.bgSecondary }]}>
+                <Text style={styles.infoPillIcon}>📦</Text>
+                <Text style={[styles.infoPillText, { color: colors.textSecondary, fontFamily: medFont }]}>
+                  {isHindi ? 'स्टॉक में' : 'In Stock'}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Category pill */}
-          <View style={styles.catPill}>
-            <IconLeaf size={12} color={Colors.brandGreen} />
-            <Animated.Text style={styles.catText}>{product.category}</Animated.Text>
-          </View>
-
-          {/* Weight options */}
-          <View style={styles.section}>
-            <Animated.Text style={styles.sectionLabel}>Select weight</Animated.Text>
-            <View style={styles.weightRow}>
-              {WEIGHT_OPTIONS.map(w => (
-                <AnimatedPressable
-                  key={w}
-                  onPress={() => setSelectedWeight(w)}
-                  scaleDown={0.92}
-                >
-                  <View style={[styles.weightChip, selectedWeight === w && styles.weightChipActive]}>
-                    <Animated.Text style={[styles.weightText, selectedWeight === w && styles.weightTextActive]}>
-                      {w}
-                    </Animated.Text>
+          {/* Unit selector */}
+          <View style={[styles.unitSection, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+            <Text style={[styles.unitLabel, { color: colors.textSecondary, fontFamily: semiBoldFont }]}>
+              {t('selectQuantity')}
+            </Text>
+            <View style={styles.unitOptions}>
+              {UNIT_OPTIONS.map((opt, i) => (
+                <TouchableOpacity key={i} onPress={() => setSelectedUnit(i)} activeOpacity={0.8}>
+                  <View style={[
+                    styles.unitOption,
+                    {
+                      backgroundColor: selectedUnit === i ? colors.primary : colors.card,
+                      borderColor: selectedUnit === i ? colors.primary : colors.border,
+                    }
+                  ]}>
+                    <Text style={[styles.unitOptionText, {
+                      color: selectedUnit === i ? '#fff' : colors.text,
+                      fontFamily: selectedUnit === i ? semiBoldFont : bodyFont,
+                    }]}>
+                      {opt.label}
+                    </Text>
+                    <Text style={[styles.unitOptionPrice, {
+                      color: selectedUnit === i ? 'rgba(255,255,255,0.8)' : colors.textMuted,
+                      fontFamily: bodyFont,
+                    }]}>
+                      ₹{Math.round(product.price * opt.multiplier)}
+                    </Text>
                   </View>
-                </AnimatedPressable>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Mandi savings bar */}
-          <MandiPriceBar ourPrice={product.price} mandiPrice={product.mandiPrice} />
+          {/* Mandi Price Comparison */}
+          {product.mandiPrice && (
+            <View style={[styles.mandiBlock, { backgroundColor: colors.mandiStrip, borderColor: colors.mandiBorder }]}>
+              <View style={styles.mandiBlockHeader}>
+                <Text style={styles.mandiBlockIcon}>📊</Text>
+                <Text style={[styles.mandiBlockTitle, { color: colors.mandiText, fontFamily: boldFont }]}>
+                  {t('mandiVsUs')}
+                </Text>
+                <View style={[styles.savingsChip, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.savingsChipText, { fontFamily: boldFont }]}>{savingPct}% OFF</Text>
+                </View>
+              </View>
 
-          {/* Delivery info */}
-          <View style={styles.deliveryRow}>
-            <IconTruck size={16} color={Colors.brandGreen} />
-            <Animated.Text style={styles.deliveryText}>
-              Same-day delivery · Picked this morning from Bhagalpur Mandi
-            </Animated.Text>
+              <View style={styles.mandiCompare}>
+                <View style={styles.mandiCompareCol}>
+                  <Text style={[styles.mandiCompareLabel, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                    {t('mandiPrice')}
+                  </Text>
+                  <Text style={[styles.mandiCompareVal, { color: colors.mandiText, fontFamily: boldFont }]}>
+                    ₹{product.mandiPrice}/kg
+                  </Text>
+                  <Text style={[styles.mandiCompareNote, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                    {isHindi ? 'थोक बाज़ार भाव' : 'Wholesale rate'}
+                  </Text>
+                </View>
+
+                <View style={styles.mandiCompareDivider}>
+                  <View style={[styles.mandiCompareLine, { backgroundColor: colors.mandiBorder }]} />
+                  <View style={[styles.mandiCompareArrow, { backgroundColor: colors.mandiStrip }]}>
+                    <Text style={[styles.mandiCompareArrowText, { color: colors.mandiText }]}>vs</Text>
+                  </View>
+                  <View style={[styles.mandiCompareLine, { backgroundColor: colors.mandiBorder }]} />
+                </View>
+
+                <View style={styles.mandiCompareCol}>
+                  <Text style={[styles.mandiCompareLabel, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                    {t('ourPrice')}
+                  </Text>
+                  <Text style={[styles.mandiCompareVal, { color: colors.primary, fontFamily: boldFont }]}>
+                    ₹{product.price}/kg
+                  </Text>
+                  <Text style={[styles.mandiCompareNote, { color: colors.textMuted, fontFamily: bodyFont }]}>
+                    {isHindi ? 'आपका भाव' : 'Your price'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.savingsSummary, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
+                <Text style={[styles.savingsSummaryText, { color: colors.primary, fontFamily: boldFont }]}>
+                  🎉 {t('youSave')} ₹{savings}/kg = ₹{effectivePrice > product.price ? savings * UNIT_OPTIONS[selectedUnit].multiplier : savings} {isHindi ? 'इस ऑर्डर पर' : 'on this order'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Farm Story — F16 */}
+          <FarmerStory isHindi={isHindi} />
+
+          {/* Price Drop Alert — F12 */}
+          <PriceDropAlert productId={product.id} productName={isHindi ? product.nameHi : product.name} />
+
+          {/* Nutrition info */}
+          <View style={[styles.nutritionBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.nutritionTitle, { color: colors.text, fontFamily: boldFont }]}>
+              {isHindi ? '🥗 पोषण जानकारी (प्रति 100g)' : '🥗 Nutrition (per 100g)'}
+            </Text>
+            <View style={styles.nutritionGrid}>
+              {[
+                { label: isHindi ? 'कैलोरी' : 'Calories', value: '18 kcal' },
+                { label: isHindi ? 'प्रोटीन' : 'Protein', value: '0.9g' },
+                { label: isHindi ? 'फाइबर' : 'Fiber', value: '1.2g' },
+                { label: isHindi ? 'विटामिन C' : 'Vitamin C', value: '14mg' },
+              ].map((n, i) => (
+                <View key={i} style={[styles.nutritionItem, { backgroundColor: colors.bgSecondary }]}>
+                  <Text style={[styles.nutritionVal, { color: colors.primary, fontFamily: boldFont }]}>{n.value}</Text>
+                  <Text style={[styles.nutritionLabel, { color: colors.textMuted, fontFamily: bodyFont }]}>{n.label}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Animated.Text style={styles.sectionLabel}>About</Animated.Text>
-            <Animated.Text style={styles.description}>
-              Sourced directly from Bhagalpur mandi every morning. No cold storage —
-              fresh from the farm to your door within hours. Our{' '}
-              <Animated.Text style={styles.descriptionBold}>direct mandi sourcing</Animated.Text>{' '}
-              cuts out 2–3 middlemen, saving you up to {Math.round(((product.price - product.mandiPrice) / product.price) * 100)}% vs retail.
-            </Animated.Text>
+          {/* Related */}
+          <View style={styles.relatedSection}>
+            <Text style={[styles.relatedTitle, { color: colors.text, fontFamily: boldFont }]}>
+              {isHindi ? 'यह भी देखें' : 'You might also like'}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedScroll}>
+              {RELATED.map((item) => (
+                <View key={item.id} style={[styles.relatedCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Image source={{ uri: item.image }} style={styles.relatedImage} resizeMode="cover" />
+                  <View style={styles.relatedInfo}>
+                    <Text style={[styles.relatedName, { color: colors.text, fontFamily: semiBoldFont }]} numberOfLines={1}>
+                      {isHindi ? item.nameHi : item.name}
+                    </Text>
+                    <Text style={[styles.relatedUnit, { color: colors.textMuted, fontFamily: bodyFont }]}>{item.unit}</Text>
+                    <Text style={[styles.relatedPrice, { color: colors.text, fontFamily: boldFont }]}>₹{item.price}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
 
-        </Animated.View>
-      </Animated.ScrollView>
-
-      {/* Bottom CTA bar */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
-        {/* Price */}
-        <View style={styles.priceBlock}>
-          <Animated.Text style={styles.priceLabel}>Total</Animated.Text>
-          <Animated.Text style={styles.price}>₹{product.price * qty}</Animated.Text>
+          <View style={{ height: 100 }} />
         </View>
+      </ScrollView>
 
-        {/* Qty control */}
-        <View style={styles.qtyControl}>
-          <AnimatedPressable onPress={handleRemove} scaleDown={0.88}>
-            <View style={styles.qtyBtn}>
-              <IconMinus size={14} color={Colors.brandGreen} strokeWidth={2.5} />
-            </View>
-          </AnimatedPressable>
-          <Animated.View style={qtyStyle}>
-            <Animated.Text style={styles.qtyText}>{qty}</Animated.Text>
-          </Animated.View>
-          <AnimatedPressable onPress={handleAdd} scaleDown={0.88}>
-            <View style={[styles.qtyBtn, styles.qtyBtnPlus]}>
-              <IconPlus size={14} color={Colors.white} strokeWidth={2.5} />
-            </View>
-          </AnimatedPressable>
-        </View>
+      {/* Notify Button — F2 */}
+      <NotifyButton productId={product.id} productName={isHindi ? product.nameHi : product.name} />
 
-        {/* Add to cart */}
-        <AnimatedPressable onPress={handleAddToCart} scaleDown={0.97} style={styles.ctaWrap}>
-          <Animated.View style={ctaStyle}>
-            <LinearGradient
-              colors={addedToCart ? [Colors.success, '#16A34A'] : [Colors.brandGreenLight, Colors.brandGreen]}
-              style={styles.ctaBtn}
+      {/* Bottom CTA */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.bg, borderTopColor: colors.border, paddingBottom: insets.bottom + 12 }]}>
+        <View style={styles.bottomBarInner}>
+          <View style={styles.bottomPriceBlock}>
+            <Text style={[styles.bottomPrice, { color: colors.text, fontFamily: boldFont }]}>₹{effectivePrice}</Text>
+            <Text style={[styles.bottomUnit, { color: colors.textMuted, fontFamily: bodyFont }]}>
+              {UNIT_OPTIONS[selectedUnit].label}
+            </Text>
+          </View>
+
+          {qty === 0 ? (
+            <AnimatedPressable
+              onPress={() => addItem({ id: product.id, name: product.name, nameHi: product.nameHi, price: product.price, unit: product.unit, image: product.image, mandiPrice: product.mandiPrice })}
+              scale={0.96}
+              style={styles.addToCartBtn}
             >
-              {addedToCart
-                ? <IconCheck size={20} color={Colors.white} strokeWidth={2.5} />
-                : <IconCart size={18} color={Colors.white} />
-              }
-              <Animated.Text style={styles.ctaText}>
-                {addedToCart ? 'Added!' : 'Add to Cart'}
-              </Animated.Text>
-            </LinearGradient>
-          </Animated.View>
-        </AnimatedPressable>
+              <View style={[styles.addToCartBtnInner, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.addToCartText, { fontFamily: boldFont }]}>+ {t('addToCart')}</Text>
+              </View>
+            </AnimatedPressable>
+          ) : (
+            <View style={styles.qtyCartRow}>
+              <View style={[styles.qtyControl, { borderColor: colors.primary }]}>
+                <AnimatedPressable onPress={() => updateQty(product.id, qty - 1)} scale={0.88}>
+                  <Text style={[styles.qtyBtn, { color: colors.primary, fontFamily: boldFont }]}>−</Text>
+                </AnimatedPressable>
+                <Text style={[styles.qtyVal, { color: colors.primary, fontFamily: boldFont }]}>{qty}</Text>
+                <AnimatedPressable onPress={() => updateQty(product.id, qty + 1)} scale={0.88}>
+                  <Text style={[styles.qtyBtn, { color: colors.primary, fontFamily: boldFont }]}>+</Text>
+                </AnimatedPressable>
+              </View>
+              <AnimatedPressable onPress={onCartPress} scale={0.96} style={styles.goCartBtn}>
+                <View style={[styles.goCartBtnInner, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.addToCartText, { fontFamily: boldFont }]}>{isHindi ? 'कार्ट देखें →' : 'Go to Cart →'}</Text>
+                </View>
+              </AnimatedPressable>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bgSecondary },
-
-  // ── Hero ────────────────────────────────────────────────
-  hero: { height: HERO_H, overflow: 'hidden' },
-  heroIcon: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 40 },
-  heroBack: { position: 'absolute', left: Spacing.base },
+  container: { flex: 1 },
+  floatingBtns: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    zIndex: 10,
+  },
+  floatingBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  floatingBtnText: { fontSize: 18, color: '#1C1C1C' },
+  heroContainer: { width: SCREEN_WIDTH, height: 300, position: 'relative' },
+  heroImage: { width: '100%', height: '100%' },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  heroBadge: {
+    position: 'absolute',
+    top: 90,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  heroBadgeText: { color: '#fff', fontSize: 13 },
+  heroFreshnessRow: {
+    position: 'absolute',
+    bottom: 14,
+    left: 16,
+    flexDirection: 'row',
+    gap: 6,
+  },
   heroTag: {
-    position: 'absolute', bottom: 60, left: Spacing.base,
-    backgroundColor: Colors.accentOrange, borderRadius: Radius.xs,
-    paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  heroTagText: { fontFamily: Font.jakartaSemiBold, fontSize: 12, color: Colors.white },
-  heroFade: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
+  heroTagText: { fontSize: 11, color: '#1C1C1C', fontFamily: 'Outfit-Medium' },
+  body: { paddingHorizontal: 16, gap: 16, paddingTop: 16 },
+  nameSection: { gap: 10 },
+  nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  nameBlock: { flex: 1, gap: 2 },
+  productName: { fontSize: 24, lineHeight: 30 },
+  productNameAlt: { fontSize: 13 },
+  priceBlock: { alignItems: 'flex-end', gap: 2 },
+  mainPrice: { fontSize: 28 },
+  mrpPrice: { fontSize: 13, textDecorationLine: 'line-through' },
+  infoPills: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  infoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  infoPillIcon: { fontSize: 13 },
+  infoPillText: { fontSize: 12 },
+  unitSection: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  unitLabel: { fontSize: 13 },
+  unitOptions: { flexDirection: 'row', gap: 8 },
+  unitOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 3,
   },
-
-  // ── Floating header ──────────────────────────────────────
-  floatingHeader: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.base, paddingBottom: Spacing.sm,
-    gap: Spacing.sm, zIndex: 20,
-  },
-  floatBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1, borderColor: Colors.borderGlass,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  floatTitle: {
-    flex: 1, fontFamily: Font.outfitSemiBold,
-    fontSize: 16, color: Colors.textOnDark,
-  },
-
-  // ── Content ──────────────────────────────────────────────
-  content: {
-    backgroundColor: Colors.bgSecondary,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    marginTop: -Radius.xl,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-    minHeight: H * 0.65,
-  },
-  nameRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  name: { flex: 1, fontFamily: Font.outfitBold, fontSize: 24, color: Colors.textPrimary, lineHeight: 32 },
-  ratingBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,209,102,0.12)',
-    borderRadius: Radius.xs, paddingHorizontal: 8, paddingVertical: 4,
-    borderWidth: 1, borderColor: 'rgba(255,209,102,0.25)',
-  },
-  ratingText: { fontFamily: Font.jakartaSemiBold, fontSize: 13, color: Colors.accentYellow },
-  catPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
-    backgroundColor: 'rgba(45,138,78,0.10)',
-    borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 5,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  catText: { fontFamily: Font.jakartaMedium, fontSize: 12, color: Colors.brandGreen },
-
-  // ── Section ──────────────────────────────────────────────
-  section: { gap: Spacing.sm },
-  sectionLabel: { fontFamily: Font.outfitSemiBold, fontSize: 15, color: Colors.textPrimary },
-
-  // ── Weight ───────────────────────────────────────────────
-  weightRow: { flexDirection: 'row', gap: Spacing.sm },
-  weightChip: {
-    paddingHorizontal: Spacing.md, paddingVertical: 9,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.neomorphBg,
-    borderWidth: 1.5, borderColor: Colors.borderLight,
-  },
-  weightChipActive: {
-    backgroundColor: Colors.brandGreen, borderColor: Colors.brandGreen,
-  },
-  weightText: { fontFamily: Font.jakartaSemiBold, fontSize: 13, color: Colors.textSecondary },
-  weightTextActive: { color: Colors.white },
-
-  // ── Mandi bar ────────────────────────────────────────────
-  mandiBar: {
-    backgroundColor: Colors.neomorphBg,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  mandiBarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mandiBarLabel: { fontFamily: Font.jakartaMedium, fontSize: 12, color: Colors.textSecondary },
-  mandiBarPct: { fontFamily: Font.outfitBold, fontSize: 13, color: Colors.success },
-  mandiBarTrack: {
-    height: 6, backgroundColor: Colors.borderLight,
-    borderRadius: 3, overflow: 'hidden',
-  },
-  mandiBarFill: { height: '100%', backgroundColor: Colors.success, borderRadius: 3 },
-  mandiPriceRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  mandiPriceItem: { alignItems: 'center', gap: 3 },
-  mandiPriceDivider: { width: 1, backgroundColor: Colors.borderLight },
-  mandiPriceLabel: { fontFamily: Font.jakartaRegular, fontSize: 11, color: Colors.textMuted },
-  mandiPriceValue: { fontFamily: Font.outfitBold, fontSize: 15, color: Colors.textPrimary },
-
-  // ── Delivery ─────────────────────────────────────────────
-  deliveryRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
-    backgroundColor: 'rgba(45,138,78,0.07)',
-    borderRadius: Radius.sm, padding: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  deliveryText: {
-    flex: 1, fontFamily: Font.jakartaRegular,
-    fontSize: 13, color: Colors.textSecondary, lineHeight: 20,
-  },
-
-  // ── Description ──────────────────────────────────────────
-  description: {
-    fontFamily: Font.jakartaRegular, fontSize: 14,
-    color: Colors.textSecondary, lineHeight: 22,
-  },
-  descriptionBold: { fontFamily: Font.jakartaSemiBold, color: Colors.brandGreen },
-
-  // ── Bottom bar ───────────────────────────────────────────
-  bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.base, paddingTop: Spacing.md,
-    backgroundColor: Colors.bgSecondary,
-    borderTopWidth: 1, borderTopColor: Colors.borderLight,
-    gap: Spacing.md,
-  },
-  priceBlock: { gap: 2 },
-  priceLabel: { fontFamily: Font.jakartaRegular, fontSize: 11, color: Colors.textMuted },
-  price: { fontFamily: Font.outfitBold, fontSize: 20, color: Colors.textPrimary },
-  qtyControl: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  qtyBtn: {
-    width: 32, height: 32, borderRadius: Radius.xs,
-    backgroundColor: 'rgba(45,138,78,0.12)',
-    borderWidth: 1, borderColor: Colors.borderMedium,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  qtyBtnPlus: { backgroundColor: Colors.brandGreen, borderColor: Colors.brandGreen },
-  qtyText: { fontFamily: Font.outfitBold, fontSize: 18, color: Colors.textPrimary, minWidth: 24, textAlign: 'center' },
-  ctaWrap: { flex: 1, borderRadius: Radius.md, overflow: 'hidden' },
-  ctaBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing.sm, height: 50, borderRadius: Radius.md,
-  },
-  ctaText: { fontFamily: Font.outfitSemiBold, fontSize: 15, color: Colors.white },
+  unitOptionText: { fontSize: 13 },
+  unitOptionPrice: { fontSize: 11 },
+  mandiBlock: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
+  mandiBlockHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mandiBlockIcon: { fontSize: 20 },
+  mandiBlockTitle: { flex: 1, fontSize: 15 },
+  savingsChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  savingsChipText: { color: '#fff', fontSize: 11 },
+  mandiCompare: { flexDirection: 'row', alignItems: 'center' },
+  mandiCompareCol: { flex: 1, alignItems: 'center', gap: 4 },
+  mandiCompareLabel: { fontSize: 12 },
+  mandiCompareVal: { fontSize: 20 },
+  mandiCompareNote: { fontSize: 11 },
+  mandiCompareDivider: { width: 32, alignItems: 'center', gap: 2 },
+  mandiCompareLine: { flex: 1, width: 1 },
+  mandiCompareArrow: { paddingVertical: 4, paddingHorizontal: 2 },
+  mandiCompareArrowText: { fontSize: 11 },
+  savingsSummary: { padding: 10, borderRadius: 10, borderWidth: 1 },
+  savingsSummaryText: { fontSize: 13, textAlign: 'center' },
+  farmBlock: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
+  farmBlockHeader: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  farmBlockIcon: { fontSize: 28 },
+  farmBlockTitle: { fontSize: 15 },
+  farmBlockSub: { fontSize: 12, marginTop: 1 },
+  farmStoryText: { fontSize: 14, lineHeight: 21 },
+  farmTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  farmTag: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  farmTagIcon: { fontSize: 13 },
+  farmTagText: { fontSize: 12 },
+  nutritionBlock: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
+  nutritionTitle: { fontSize: 15 },
+  nutritionGrid: { flexDirection: 'row', gap: 8 },
+  nutritionItem: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 10, gap: 3 },
+  nutritionVal: { fontSize: 15 },
+  nutritionLabel: { fontSize: 11, textAlign: 'center' },
+  relatedSection: { gap: 12 },
+  relatedTitle: { fontSize: 16 },
+  relatedScroll: { gap: 10, paddingRight: 16 },
+  relatedCard: { width: 130, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  relatedImage: { width: '100%', height: 90 },
+  relatedInfo: { padding: 8, gap: 2 },
+  relatedName: { fontSize: 12 },
+  relatedUnit: { fontSize: 11 },
+  relatedPrice: { fontSize: 14 },
+  bottomBar: { borderTopWidth: 1, padding: 16 },
+  bottomBarInner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bottomPriceBlock: { gap: 1 },
+  bottomPrice: { fontSize: 22 },
+  bottomUnit: { fontSize: 12 },
+  addToCartBtn: { flex: 1 },
+  addToCartBtnInner: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  addToCartText: { color: '#fff', fontSize: 16 },
+  qtyCartRow: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  qtyControl: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderRadius: 12, height: 52 },
+  qtyBtn: { fontSize: 22, paddingHorizontal: 12 },
+  qtyVal: { fontSize: 18, minWidth: 30, textAlign: 'center' },
+  goCartBtn: { flex: 1 },
+  goCartBtnInner: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });
+
+export default ProductDetailScreen;
